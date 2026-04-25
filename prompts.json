@@ -1,0 +1,1113 @@
+[
+  {
+    "id": "account-panorama",
+    "title": "Account Infrastructure Panorama",
+    "category": "exploration",
+    "services": [
+      "EC2",
+      "RDS",
+      "Lambda",
+      "ECS",
+      "CloudWatch"
+    ],
+    "difficulty": "beginner",
+    "validated": true,
+    "description": "High-level overview of all infrastructure in an AWS account — resource counts, health signals, and top findings across compute, databases, serverless, and containers.",
+    "when": "First time reviewing an account, onboarding, or preparing a health check.",
+    "prompt": "<role>\nYou are a senior cloud operations engineer performing an infrastructure assessment.\n</role>\n\n<context>\nCloud operations review — assess the overall infrastructure footprint and health of this AWS account to prepare a health check report.\n</context>\n\n<task>\nProduce a structured summary covering these services:\n1. EC2 — total instances by state (running/stopped). Identify any stopped longer than 7 days.\n2. RDS/Aurora — all clusters with engine, version, and Multi-AZ status. Identify versions approaching end of support.\n3. Lambda — total functions grouped by application prefix. Identify deprecated runtimes (python3.8, python3.9, nodejs16.x, nodejs18.x, java11, dotnet6 or older).\n4. ECS/EKS — clusters with service count and health status.\n5. CloudWatch — alarms in ALARM or INSUFFICIENT_DATA state with metric and threshold.\n</task>\n\n<output>\nFor each service: count + top 3 findings sorted by severity (CRITICAL, HIGH, MEDIUM).\nConclude with a 3-sentence executive summary of account health.\nState total resource count per service to confirm completeness.\n</output>\n\n<quality>\nPaginate through all results for every service. Verify attributes via API calls.\nReport only verified data — state limitations if any API returns incomplete results.\nBefore presenting, verify that total counts are consistent across your findings.\n</quality>",
+    "expects": "Structured summary with findings by severity and executive summary.",
+    "tags": [
+      "health-check",
+      "onboarding",
+      "overview"
+    ]
+  },
+  {
+    "id": "ec2-inventory",
+    "title": "EC2 Fleet Review with Findings",
+    "category": "exploration",
+    "services": [
+      "EC2"
+    ],
+    "difficulty": "beginner",
+    "validated": true,
+    "description": "Inventory all EC2 instances with security, cost, and modernization findings.",
+    "when": "Reviewing instances for rightsizing, cleanup, or security assessment.",
+    "prompt": "<role>\nYou are a senior cloud operations engineer performing an infrastructure assessment.\n</role>\n\n<context>\nEC2 fleet review — identify idle resources, security exposure, and modernization opportunities.\n</context>\n\n<task>\nList all EC2 instances with: instance ID, name tag, instance type, state, public IP, launch time.\nSort by state (running first). Paginate through all results.\n</task>\n\n<scope>\nAfter the inventory table, analyze and report:\n- CRITICAL: instances with public IPs — verify if intentional or misconfiguration\n- HIGH: instances stopped longer than 7 days — candidates for termination (still incurring EBS costs)\n- MEDIUM: previous-generation instance types (m3, m4, t2, c4, r4) — candidates for modernization\n</scope>\n\n<output>\nInventory table, then findings by severity.\nSummary line: total instances, running count, stopped count, percentage on current-generation types.\n</output>\n\n<quality>\nPaginate through all results. Verify each attribute via describe-instances API.\nBefore presenting, confirm total instance count matches paginated results.\n</quality>",
+    "expects": "Instance table + security/cost/modernization findings.",
+    "tags": [
+      "inventory",
+      "security",
+      "cost",
+      "modernization"
+    ]
+  },
+  {
+    "id": "lambda-opportunities",
+    "title": "Lambda Fleet Assessment",
+    "category": "exploration",
+    "services": [
+      "Lambda"
+    ],
+    "difficulty": "beginner",
+    "validated": true,
+    "description": "Identify Lambda functions needing runtime updates, Graviton migration, or memory right-sizing.",
+    "when": "Runtime lifecycle review, cost optimization, or security assessment.",
+    "prompt": "<role>\nYou are a senior cloud operations engineer performing an infrastructure assessment.\n</role>\n\n<context>\nLambda fleet assessment — identify runtime risks, cost optimization opportunities, and modernization candidates.\n</context>\n\n<task>\nList all Lambda functions grouped by application (infer application boundaries from naming prefix).\nFor each function: name, runtime, architecture (x86_64/arm64), memory allocation.\nPaginate through every page until the complete list is retrieved.\n</task>\n\n<scope>\nAnalyze and categorize findings:\n- CRITICAL: functions on deprecated or end-of-support runtimes (python3.8, python3.9, nodejs16.x, nodejs18.x, java11, dotnet6 or older)\n- HIGH: functions on x86_64 architecture — eligible for ARM64 migration (~20% cost reduction). Note: verify runtime supports ARM64 before recommending.\n- MEDIUM: functions on 128MB default memory — likely not right-sized for workload\n- INFO: Java functions without SnapStart enabled — opportunity for cold start reduction\n</scope>\n\n<output>\nGrouped inventory, then findings by severity.\nSummary: total functions, percentage on deprecated runtimes, percentage x86 vs ARM64, percentage on default memory.\n</output>\n\n<quality>\nConfirm total count matches the full paginated result.\nBefore presenting, verify percentages add up correctly.\n</quality>",
+    "expects": "Grouped inventory + runtime/architecture/memory findings with percentages.",
+    "tags": [
+      "inventory",
+      "runtime",
+      "graviton",
+      "cost",
+      "security"
+    ]
+  },
+  {
+    "id": "rds-fleet-review",
+    "title": "Database Fleet Review",
+    "category": "exploration",
+    "services": [
+      "RDS",
+      "Aurora"
+    ],
+    "difficulty": "beginner",
+    "validated": true,
+    "description": "Assess all databases for version lifecycle risk, resiliency posture, and security baseline.",
+    "when": "Version lifecycle review, resiliency assessment, or EOL analysis.",
+    "prompt": "<role>\nYou are a senior cloud operations engineer performing an infrastructure assessment.\n</role>\n\n<context>\nDatabase fleet review — assess version lifecycle risk, resiliency posture, and security baseline.\n</context>\n\n<task>\nList all RDS clusters and standalone instances with: identifier, engine, version, status, instance class, Multi-AZ configuration, encryption status.\nPaginate through all results.\n</task>\n\n<scope>\nAnalyze and report:\n- CRITICAL: engine versions within 6 months of end of standard support\n- HIGH: clusters or instances without Multi-AZ (single point of failure)\n- HIGH: instances without encryption at rest\n- MEDIUM: previous-generation instance classes (db.m4, db.r4, db.t2) — Graviton alternatives available (db.m6g, db.r6g, db.m7g, db.r7g)\n</scope>\n\n<output>\nInventory table, then findings by severity. Confirm total database count.\n</output>\n\n<quality>\nPaginate through all results. Verify each attribute via describe-db-clusters and describe-db-instances APIs.\nBefore presenting, confirm cluster count + standalone instance count = total.\n</quality>",
+    "expects": "Database inventory + version/resiliency/encryption findings.",
+    "tags": [
+      "inventory",
+      "rds",
+      "aurora",
+      "eol",
+      "encryption",
+      "multi-az"
+    ]
+  },
+  {
+    "id": "instance-network-path",
+    "title": "Instance Network Path Trace",
+    "category": "exploration",
+    "services": [
+      "VPC",
+      "EC2"
+    ],
+    "difficulty": "intermediate",
+    "validated": true,
+    "description": "Trace the complete network path from a specific instance — VPC, subnet, routes, NAT, TGW, endpoints.",
+    "when": "Troubleshoot connectivity or document network path for an instance.",
+    "prompt": "<role>\nYou are a senior cloud operations engineer performing an infrastructure assessment.\n</role>\n\n<context>\nNetwork path analysis — trace connectivity from a specific instance to understand routing, internet access, and cross-VPC connectivity.\n</context>\n\n<task>\nFor instance [INSTANCE_ID], trace the complete network path:\n1. Identify the VPC and subnet (include CIDR ranges)\n2. Retrieve the route table associated with the subnet — list all routes\n3. Determine internet access path: NAT Gateway, Internet Gateway, or none\n4. Identify Transit Gateway or VPC Peering connections in the same VPC\n5. List all VPC Endpoints available in the VPC\n</task>\n\n<output>\nPresent as a layered network path from the instance outward to the internet or peer VPCs.\n</output>\n\n<quality>\nVerify each component exists via API before including it in the path.\nDo not assume routing from subnet names or VPC tags.\n</quality>",
+    "expects": "Layered network path diagram from instance to internet/peers.",
+    "tags": [
+      "networking",
+      "troubleshooting",
+      "connectivity"
+    ]
+  },
+  {
+    "id": "cloudwatch-alarms-health",
+    "title": "CloudWatch Alarms & Operational Health",
+    "category": "exploration",
+    "services": [
+      "CloudWatch"
+    ],
+    "difficulty": "beginner",
+    "validated": true,
+    "description": "Evaluate CloudWatch alarm state to identify active incidents, monitoring gaps, and overall health posture.",
+    "when": "Preparing health check or understanding operational state.",
+    "prompt": "<role>\nYou are a senior cloud operations engineer performing an infrastructure assessment.\n</role>\n\n<context>\nOperational health assessment — evaluate CloudWatch alarm state to identify active incidents, monitoring gaps, and overall health posture.\n</context>\n\n<task>\nList all CloudWatch alarms grouped by state:\n1. ALARM — requires attention\n2. INSUFFICIENT_DATA — possible monitoring gaps or deleted resources\n3. OK — healthy\n\nFor each alarm: name, metric, namespace, threshold, current state.\n</task>\n\n<output>\nGrouped table by state (ALARM first), then assessment:\n- Classify ALARM state: real incident vs expected behavior (e.g., auto-scaling target tracking)\n- Classify INSUFFICIENT_DATA: missing metrics vs recently created alarms\n- Overall health: percentage of alarms in OK state\n- Confirm total alarm count.\n</output>\n\n<quality>\nPaginate through all alarms. Verify current state via API — do not use cached values.\n</quality>",
+    "expects": "Alarm inventory grouped by state with health assessment.",
+    "tags": [
+      "monitoring",
+      "health-check",
+      "alarms"
+    ]
+  },
+  {
+    "id": "ecs-cluster-architecture",
+    "title": "ECS Cluster Architecture Review",
+    "category": "architecture",
+    "services": [
+      "ECS",
+      "ELB"
+    ],
+    "difficulty": "intermediate",
+    "validated": true,
+    "description": "Document all components of an ECS cluster and identify misconfigurations for operational readiness.",
+    "when": "Documenting architecture, onboarding, or detecting misconfigurations.",
+    "prompt": "<role>\nYou are a solutions architect reviewing application architecture on AWS.\n</role>\n\n<context>\nECS cluster architecture review — document all components and identify misconfigurations for operational readiness.\n</context>\n\n<task>\nAnalyze ECS cluster [CLUSTER_NAME] end-to-end:\n1. All services: status, desired/running task count, deployment state\n2. Task definitions: container image, CPU, memory, port mappings\n3. Target groups and load balancers — verify association via API\n4. VPC, subnets, security groups\n5. Auto-scaling configuration\n</task>\n\n<scope>\nIdentify misconfigurations:\n- CRITICAL: services with 0 running tasks but desired > 0 (verify via describe-services)\n- HIGH: target groups without associated load balancer\n- MEDIUM: health check grace period set to 0 (tasks may be killed prematurely)\n- MEDIUM: deployment circuit breaker disabled (failing services retry indefinitely — can cause death spirals and cost spikes in AWS Config)\n</scope>\n\n<output>\nSummary table of services, then detailed findings by severity.\nConfirm total service count.\n</output>\n\n<quality>\nPaginate through all services. Verify each attribute via API — do not infer from names.\n</quality>",
+    "expects": "Service inventory + architecture findings by severity.",
+    "tags": [
+      "architecture",
+      "ecs",
+      "misconfigurations"
+    ]
+  },
+  {
+    "id": "lambda-integration-map",
+    "title": "Lambda Integration Map",
+    "category": "architecture",
+    "services": [
+      "Lambda",
+      "IAM",
+      "API Gateway",
+      "SQS",
+      "EventBridge"
+    ],
+    "difficulty": "intermediate",
+    "validated": true,
+    "description": "Map all connections for a Lambda function — triggers, destinations, IAM, network, layers.",
+    "when": "Understanding blast radius before modifying, or documenting dependencies.",
+    "prompt": "<role>\nYou are a solutions architect reviewing application architecture on AWS.\n</role>\n\n<task>\nMap all connections for Lambda function [FUNCTION_NAME].\nVerify each connection via actual API calls — do not infer from function name or tags.\n\n1. TRIGGERS: What invokes it? (API Gateway, EventBridge, S3, SQS) — show ARNs. Check list-event-source-mappings and get-policy for resource-based triggers.\n2. DESTINATIONS: What does it connect to? Check BOTH the IAM policy actions AND environment variables for resource ARNs.\n3. IAM: Execution role and all policies (list-attached-role-policies + list-role-policies + get-role-policy for each inline). Flag wildcards (*) in Action or Resource.\n4. NETWORK: VPC, subnets, security groups (if applicable)\n5. LAYERS: List with versions\n</task>\n\n<output>\nPresent as: what flows IN → function → what flows OUT\n</output>\n\n<quality>\nVerify each connection via API. Do not infer from function name or tags.\n</quality>",
+    "expects": "Integration map showing triggers → function → destinations with IAM analysis.",
+    "tags": [
+      "architecture",
+      "lambda",
+      "dependencies",
+      "blast-radius"
+    ]
+  },
+  {
+    "id": "error-investigation",
+    "title": "Investigate API/Service Errors",
+    "category": "troubleshooting",
+    "services": [
+      "Lambda",
+      "API Gateway",
+      "CloudWatch",
+      "DynamoDB"
+    ],
+    "difficulty": "intermediate",
+    "validated": true,
+    "description": "Step-by-step investigation of API errors — check logs, configuration, backend resources, and alarms.",
+    "when": "API returning errors, service degraded, customer-reported issue.",
+    "prompt": "<role>\nYou are a site reliability engineer investigating a production issue.\n</role>\n\n<context>\nIncident investigation — [ENDPOINT] is returning [ERROR_CODE] errors. No deployments in the last 24 hours.\n</context>\n\n<task>\nInvestigate step by step — show findings at each step before moving to the next:\n\n1. Check CloudWatch logs for [FUNCTION/SERVICE] — search for ERROR, Exception, AccessDenied in the last hour. If no errors in logs, check if the application is logging errors at all (this itself is a finding).\n2. Check the function/service configuration — environment variables, IAM role, VPC config. Compare resource names in config against actual resources that exist.\n3. Verify backend resources are accessible — does the DynamoDB table / RDS instance / S3 bucket actually exist with the exact name referenced?\n4. Check active CloudWatch alarms for related services.\n</task>\n\n<output>\nFindings at each step, then root cause diagnosis.\n</output>\n\n<quality>\nDiagnose based ONLY on evidence found at each step.\nIf you cannot determine the cause from the evidence, state what additional information is needed.\n</quality>",
+    "expects": "Step-by-step investigation with evidence-based root cause.",
+    "tags": [
+      "troubleshooting",
+      "errors",
+      "investigation",
+      "logs",
+      "root-cause"
+    ]
+  },
+  {
+    "id": "ecs-health-check",
+    "title": "ECS Service Health Check",
+    "category": "troubleshooting",
+    "services": [
+      "ECS",
+      "ELB",
+      "CloudWatch"
+    ],
+    "difficulty": "intermediate",
+    "validated": true,
+    "description": "Comprehensive health check of an ECS service — tasks, events, target group health, and resource utilization.",
+    "when": "Service slow or returning errors, deployment issues, intermittent failures.",
+    "prompt": "<role>\nYou are a site reliability engineer investigating a production issue.\n</role>\n\n<context>\nECS service health assessment — determine if the service is healthy, degraded, or failing.\n</context>\n\n<task>\nCheck health of ECS service [SERVICE_NAME] in cluster [CLUSTER_NAME].\nVerify each finding via actual API calls.\n\n1. TASKS: all desired tasks running? Any in STOPPED state? Check stop reason via describe-tasks.\n2. EVENTS: last 10 service events — any deployment failures or task placement errors?\n3. TARGET GROUP: healthy vs unhealthy target count? Health check configuration (path, interval, threshold)? Verify via describe-target-health.\n4. METRICS: CPU and memory utilization near limits? Check CloudWatch ECS metrics if available.\n</task>\n\n<output>\nVerdict: HEALTHY, DEGRADED, or FAILING.\nMost likely cause if not healthy.\nIf any API call fails or returns no data, state it explicitly.\n</output>\n\n<quality>\nVerify via describe-services, describe-tasks, and describe-target-health APIs.\nBefore presenting verdict, confirm all 4 checks have been completed.\n</quality>",
+    "expects": "Health verdict with evidence from tasks, events, targets, and metrics.",
+    "tags": [
+      "troubleshooting",
+      "ecs",
+      "health-check",
+      "deployment"
+    ]
+  },
+  {
+    "id": "eks-health-check",
+    "title": "EKS Cluster Health Check",
+    "category": "containers",
+    "services": [
+      "EKS",
+      "EC2"
+    ],
+    "difficulty": "intermediate",
+    "validated": true,
+    "description": "Version lifecycle review, node group optimization, add-on status, and security posture for EKS clusters.",
+    "when": "Version lifecycle review, node group optimization, security assessment.",
+    "prompt": "<role>\nYou are a container platform engineer assessing container infrastructure health.\n</role>\n\n<task>\nFor each EKS cluster in this account (paginate through all clusters):\n\n1. VERSIONS: Cluster version, platform version. Is it within 3 months of end of standard support? Verify version via describe-cluster API.\n2. NODE GROUPS: For each, show instance type, desired/min/max, AMI type, disk size. Paginate through all node groups.\n3. ADD-ONS: List installed add-ons with versions. Flag any outdated.\n4. LOGGING: Is control plane logging enabled? Which log types? Verify via describe-cluster API.\n5. NETWORKING: VPC, subnets, security groups. Public or private endpoint? Verify endpoint access config.\n</task>\n\n<scope>\nFlag:\n- Clusters on versions approaching EOL\n- Node groups using x86 instances (Graviton opportunity — ~20% savings)\n- Node groups with min=max=desired (no auto-scaling configured)\n- Public API endpoint enabled (security concern)\n</scope>\n\n<output>\nPer-cluster summary, then findings by severity. Confirm total cluster and node group counts.\n</output>\n\n<quality>\nVerify version via describe-cluster API — do not assume from cluster name.\n</quality>",
+    "expects": "EKS inventory + version/security/optimization findings.",
+    "tags": [
+      "containers",
+      "eks",
+      "eol",
+      "security",
+      "graviton"
+    ]
+  },
+  {
+    "id": "ecs-services-scan",
+    "title": "ECS Services Health Scan — Death Spiral Detection",
+    "category": "containers",
+    "services": [
+      "ECS",
+      "CloudWatch",
+      "Config"
+    ],
+    "difficulty": "intermediate",
+    "validated": true,
+    "description": "Scan all ECS services across clusters for failures, death spirals, and misconfigurations that generate hidden costs.",
+    "when": "Detecting services in continuous failure, cost spikes from Config CIs, or org-wide ECS health review.",
+    "prompt": "<role>\nYou are a container platform engineer assessing container infrastructure health.\n</role>\n\n<task>\nFor each ECS cluster (list-clusters, paginate all), list all services (list-services, paginate all) and check via describe-services API:\n\n1. HEALTH: desired count vs running count. Any service with running < desired?\n2. FAILURES: For services not at desired count, check failedTasks count and last stopped task reason via describe-tasks.\n3. DEATH SPIRAL: Services with high failedTasks count (>100) AND rolloutState=IN_PROGRESS for >24 hours — these are stuck in a loop of start→fail→restart, generating costs in Fargate compute and AWS Config CIs.\n4. CIRCUIT BREAKER: Is deployment circuit breaker enabled? (if not, failing services retry forever)\n5. HEALTH CHECK: What's the health check grace period? (0 = tasks may be killed too early)\n</task>\n\n<scope>\n- CRITICAL: death spiral detected (high failedTasks + stuck rollout + circuit breaker disabled)\n- HIGH: services with running < desired and no circuit breaker\n- MEDIUM: circuit breaker disabled on any service\n</scope>\n\n<output>\nFor each failing service, estimate the daily cost of the failure loop (Fargate compute + Config CIs at $0.003/CI).\nConfirm total cluster count and total service count across all clusters.\n</output>\n\n<quality>\nVerify via describe-services API. Check failedTasks and rolloutState fields.\n</quality>",
+    "expects": "ECS health scan with death spiral detection and cost impact.",
+    "tags": [
+      "containers",
+      "ecs",
+      "death-spiral",
+      "cost",
+      "config"
+    ]
+  },
+  {
+    "id": "vpc-inventory",
+    "title": "VPC Inventory with CIDR Overlap Detection",
+    "category": "networking",
+    "services": [
+      "VPC"
+    ],
+    "difficulty": "beginner",
+    "validated": true,
+    "description": "Map all VPCs, detect CIDR overlaps that prevent peering, and identify orphaned or test VPCs.",
+    "when": "Network topology review, VPC peering planning, cleanup.",
+    "prompt": "<role>\nYou are a cloud networking specialist reviewing network infrastructure.\n</role>\n\n<context>\nVPC topology assessment — map all VPCs and identify CIDR conflicts, orphaned resources, and governance gaps.\n</context>\n\n<task>\nList all VPCs with: VPC ID, name tag, CIDR block, default (yes/no), number of subnets.\nPaginate through all VPCs. Verify subnet count via describe-subnets API.\n</task>\n\n<scope>\nIdentify:\n- CRITICAL: CIDR overlaps — VPCs with identical CIDR ranges (cannot be peered)\n- HIGH: VPCs with no running resources (potential orphans — verify by checking for ENIs or instances)\n- MEDIUM: VPCs with names suggesting test/demo purpose\n- MEDIUM: the default VPC (should not host production workloads)\n</scope>\n\n<output>\nInventory table, then findings by severity.\nSummary: total VPCs, CIDR ranges in use, overlap count.\n</output>\n\n<quality>\nVerify each VPC's subnet count and resource presence via API.\nBefore presenting, confirm CIDR overlap detection covers all VPC pairs.\n</quality>",
+    "expects": "VPC inventory + CIDR overlap map + orphan candidates.",
+    "tags": [
+      "networking",
+      "vpc",
+      "cidr",
+      "topology",
+      "cleanup"
+    ]
+  },
+  {
+    "id": "nat-gateway-optimization",
+    "title": "NAT Gateway Cost Optimization",
+    "category": "networking",
+    "services": [
+      "VPC",
+      "NAT Gateway",
+      "CloudWatch"
+    ],
+    "difficulty": "intermediate",
+    "validated": true,
+    "description": "Analyze NAT Gateway costs using CloudWatch metrics and identify free VPC Endpoint alternatives.",
+    "when": "Networking cost review, VPC optimization.",
+    "prompt": "<role>\nYou are a cloud networking specialist reviewing network infrastructure.\n</role>\n\n<context>\nNAT Gateway cost analysis — identify underutilized gateways and missing free VPC Endpoints.\n</context>\n\n<task>\n1. List all NAT Gateways with: ID, VPC, subnet, state. Verify state via API.\n2. For each NAT Gateway, check CloudWatch BytesOutToDestination and BytesInFromDestination (last 7 days). If <1GB/day, it may be underutilized ($32/mo for almost nothing).\n3. Identify NAT Gateways not referenced by any route table (orphaned).\n4. For each VPC with a NAT Gateway, check for S3 and DynamoDB Gateway Endpoints specifically. These are FREE and eliminate NAT data processing charges for those services.\n</task>\n\n<scope>\n- CRITICAL: VPCs with NAT Gateway but no S3/DynamoDB Gateway Endpoint (free, immediate savings)\n- HIGH: orphaned NAT Gateways not in any route table (pure waste)\n- HIGH: NAT Gateways with 0 bytes processed in 7 days (idle)\n- MEDIUM: multiple NAT Gateways in same VPC (verify HA vs redundant)\n</scope>\n\n<output>\nInventory, gap analysis, findings by severity.\nCost context: ~$32/month base + $0.045/GB processed. S3/DynamoDB Gateway Endpoints are free.\n</output>\n\n<quality>\nVerify via describe-nat-gateways, describe-vpc-endpoints, and CloudWatch APIs.\nBefore presenting, confirm VPC-to-endpoint mapping is accurate.\n</quality>",
+    "expects": "NAT GW inventory + traffic analysis + VPC Endpoint gaps + cost savings.",
+    "tags": [
+      "networking",
+      "cost",
+      "nat-gateway",
+      "vpc-endpoints"
+    ]
+  },
+  {
+    "id": "spending-overview",
+    "title": "Cost Overview & Trend Analysis",
+    "category": "finops",
+    "services": [
+      "Cost Explorer"
+    ],
+    "difficulty": "beginner",
+    "validated": true,
+    "description": "Complete AWS spending overview — total cost trend, top 10 services by cost with month-over-month changes and anomaly detection.",
+    "when": "First time looking at costs, preparing for a FinOps meeting, or investigating a bill increase.",
+    "prompt": "<role>\nYou are a FinOps engineer analyzing AWS costs and efficiency.\n</role>\n\n<context>\nCost analysis — understand spending trajectory and identify the primary cost drivers in this AWS account.\nNote: If this account is part of an AWS Organization, Cost Explorer may show consolidated costs. Specify if you want linked-account-only costs.\n</context>\n\n<task>\n1. Retrieve total cost for the last 3 months, month by month using Cost Explorer API with UnblendedCost metric.\n2. Identify the top 5 services by cost in the current month.\n3. Calculate month-over-month change (%) for each top service.\n</task>\n\n<output>\nCost trend table (month, total), then top 5 services table (service, cost, MoM %).\nIdentify any service with >20% month-over-month increase as an anomaly.\nConclude with: Total monthly spend and biggest cost driver.\n</output>\n\n<quality>\nVerify data via Cost Explorer API — report only actual cost data, not estimates from resource counts.\nBefore presenting, verify that service costs sum to approximately the total.\n</quality>",
+    "expects": "3-month cost trend + top 5 services with MoM changes + anomaly flags.",
+    "tags": [
+      "cost",
+      "trend",
+      "overview",
+      "anomaly"
+    ]
+  },
+  {
+    "id": "idle-resources-cleanup",
+    "title": "Idle Resources Cleanup",
+    "category": "finops",
+    "services": [
+      "EC2",
+      "EBS",
+      "ELB",
+      "VPC",
+      "RDS"
+    ],
+    "difficulty": "beginner",
+    "validated": true,
+    "description": "Find idle resources costing money but providing no value — EC2, EBS, EIPs, ALBs, RDS, NAT Gateways.",
+    "when": "Need quick savings with low risk, monthly cleanup routine.",
+    "prompt": "<role>\nYou are a FinOps engineer analyzing AWS costs and efficiency.\n</role>\n\n<context>\nIdle resource identification — find resources incurring costs without providing business value.\n</context>\n\n<task>\nCheck each resource type via API. Paginate through all resources for each check.\n\n1. EC2 instances stopped >7 days — check State and StateTransitionReason for stop date\n2. Unattached EBS volumes — describe-volumes with status=available\n3. Elastic IPs not associated with a running instance — describe-addresses, check AssociationId ($3.65/mo each)\n4. Load balancers with 0 healthy targets — describe-target-health for each target group\n5. RDS instances with 0 DatabaseConnections in last 7 days — check CloudWatch metric\n6. NAT Gateways with 0 bytes processed in last 7 days — check CloudWatch BytesOutToDestination\n7. EBS snapshots older than 90 days not linked to any AMI\n</task>\n\n<output>\nFor each finding: resource ID, region, estimated monthly cost, recommended action.\nTotal potential immediate savings at the end.\nIf you cannot verify a metric (e.g., CloudWatch data not available), state \"unverified\" — don't assume idle.\n</output>\n\n<quality>\nPaginate through all resources. Verify idle status via API.\nMark uncertain items as \"verify before deleting\".\n</quality>",
+    "expects": "List of idle resources with cost estimates and total savings potential.",
+    "tags": [
+      "cost",
+      "cleanup",
+      "idle",
+      "quick-wins"
+    ]
+  },
+  {
+    "id": "graviton-adoption",
+    "title": "Graviton Adoption Assessment",
+    "category": "finops",
+    "services": [
+      "EC2",
+      "Lambda",
+      "RDS",
+      "ElastiCache",
+      "OpenSearch"
+    ],
+    "difficulty": "beginner",
+    "validated": true,
+    "description": "Measure Graviton (ARM64) adoption across all compute services and estimate savings from migration.",
+    "when": "Cost optimization review, Graviton migration planning.",
+    "prompt": "<role>\nYou are a FinOps engineer analyzing AWS costs and efficiency.\n</role>\n\n<context>\nGraviton adoption assessment — measure current ARM64 usage and estimate savings from migrating eligible x86_64 resources.\n</context>\n\n<task>\nPaginate through all resources for each service:\n1. EC2 — list instances by architecture (x86_64 vs arm64). Calculate percentage on Graviton.\n2. Lambda — list functions by architecture. Calculate percentage on ARM64. Note: verify runtime supports ARM64 before recommending.\n3. RDS — list instances by instance class. Identify Graviton families (db.r6g, db.r7g, db.m6g, db.m7g, db.t4g).\n4. ElastiCache — list clusters by node type. Identify Graviton families (cache.r6g, cache.r7g, cache.m6g, cache.m7g).\n5. OpenSearch — list domains by instance type. Identify Graviton types (*.r6g.*, *.m6g.*, *.r7g.*).\n</task>\n\n<output>\nPer-service breakdown, then summary:\n- Total compute resources, percentage Graviton vs x86\n- Estimated savings per service (~20% for EC2/Lambda, ~20% for RDS, ~10-20% for ElastiCache/OpenSearch)\n- Top 5 easiest migrations (smallest blast radius)\n</output>\n\n<quality>\nVerify architecture via API for each resource.\nBefore presenting, confirm percentages are mathematically correct.\n</quality>",
+    "expects": "Architecture breakdown per service + savings estimate + migration candidates.",
+    "tags": [
+      "graviton",
+      "arm64",
+      "cost",
+      "migration"
+    ]
+  },
+  {
+    "id": "cloudwatch-log-costs",
+    "title": "Are My Logs Costing Too Much?",
+    "category": "finops",
+    "services": [
+      "CloudWatch"
+    ],
+    "difficulty": "beginner",
+    "validated": true,
+    "description": "Analyze CloudWatch Logs for cost surprises — infinite retention, oversized log groups, and orphaned logs.",
+    "when": "CloudWatch costs are unexpectedly high, or monthly cost review.",
+    "prompt": "<role>\nYou are a FinOps engineer analyzing AWS costs and efficiency.\n</role>\n\n<context>\nCloudWatch Logs cost analysis — identify log groups with excessive storage costs due to retention, size, or abandonment.\n</context>\n\n<task>\n1. List all log groups with: name, stored bytes, retention period (days or never expires).\n2. Sort by stored bytes (largest first).\n3. Calculate estimated monthly storage cost per log group ($0.03/GB/month).\nPaginate through all log groups.\n</task>\n\n<scope>\nIdentify:\n- CRITICAL: log groups with \"never expires\" retention (infinite storage growth)\n- HIGH: log groups larger than 10GB (significant storage cost)\n- MEDIUM: log groups with 0 incoming bytes in last 7 days (possibly orphaned)\n</scope>\n\n<output>\nTable sorted by size, findings by severity.\nRecommend retention policy: 7 days (dev), 30 days (staging), 90 days (prod).\nTotal potential savings if retention policies applied.\n</output>\n\n<quality>\nVerify stored bytes via describe-log-groups API.\nBefore presenting, confirm total storage sums correctly across all groups.\n</quality>",
+    "expects": "Log group inventory sorted by cost + retention recommendations + savings estimate.",
+    "tags": [
+      "cost",
+      "cloudwatch",
+      "logs",
+      "retention",
+      "cleanup"
+    ]
+  },
+  {
+    "id": "ec2-rightsizing",
+    "title": "EC2 Rightsizing Analysis",
+    "category": "finops",
+    "services": [
+      "EC2",
+      "CloudWatch"
+    ],
+    "difficulty": "intermediate",
+    "validated": true,
+    "description": "Identify oversized EC2 instances using CloudWatch CPU metrics and recommend downsizing.",
+    "when": "Monthly cost review, rightsizing initiative, Compute Optimizer follow-up.",
+    "prompt": "<role>\nYou are a FinOps engineer analyzing AWS costs and efficiency.\n</role>\n\n<context>\nEC2 rightsizing analysis — identify instances where allocated compute exceeds actual utilization.\nNote: Memory utilization requires CloudWatch Agent (not available by default). This analysis uses CPU only. For comprehensive rightsizing, also check AWS Compute Optimizer recommendations.\n</context>\n\n<task>\nFor each running EC2 instance, retrieve CloudWatch metrics (last 14 days):\n- CPUUtilization: average and maximum\n- NetworkIn/NetworkOut: average\n</task>\n\n<scope>\nIdentify candidates:\n- CRITICAL: average CPU below 5% AND max CPU below 20% (strong downsize candidate)\n- HIGH: average CPU below 10% (likely oversized)\n- MEDIUM: previous-generation instance type (m4, c4, r4, t2)\n</scope>\n\n<output>\nFor each flagged instance:\n| Instance ID | Name | Current Type | Avg CPU | Max CPU | Suggested Type | Est. Monthly Savings |\n\nTotal potential monthly savings.\nNote: Memory metrics not available without CloudWatch Agent — flag instances where memory could be the bottleneck.\n</output>\n\n<quality>\nVerify metrics via CloudWatch GetMetricStatistics API.\nIf CloudWatch data is unavailable for an instance, mark as \"no metrics — enable detailed monitoring\".\n</quality>",
+    "expects": "Rightsizing table with CPU evidence + suggested types + savings estimate.",
+    "tags": [
+      "cost",
+      "rightsizing",
+      "ec2",
+      "cpu",
+      "optimization"
+    ]
+  },
+  {
+    "id": "ebs-optimization",
+    "title": "EBS Volume Optimization",
+    "category": "finops",
+    "services": [
+      "EBS",
+      "EC2"
+    ],
+    "difficulty": "intermediate",
+    "validated": true,
+    "description": "Find unattached volumes, GP2→GP3 migration candidates, oversized volumes, and old snapshots.",
+    "when": "Storage cost review, monthly cleanup.",
+    "prompt": "<role>\nYou are a FinOps engineer analyzing AWS costs and efficiency.\n</role>\n\n<context>\nEBS cost optimization — identify volumes and snapshots that are wasting money.\n</context>\n\n<task>\nPaginate through all EBS volumes and snapshots. Check each via API.\n\n1. UNATTACHED: volumes with status=available (no instance). Show volume ID, size, type, creation date, monthly cost.\n2. GP2 to GP3: volumes still on gp2 type. GP3 is 20% cheaper with better baseline performance (3,000 IOPS, 125 MB/s). Migration is non-disruptive via ModifyVolume.\n3. OVERSIZED: volumes larger than 500GB with less than 1 IOPS/day average (check CloudWatch VolumeReadOps + VolumeWriteOps, 14-day average).\n4. OLD SNAPSHOTS: snapshots older than 90 days not associated with any AMI.\n</task>\n\n<output>\nFindings by category with count and total monthly cost per category.\nGrand total: potential monthly savings across all categories.\n</output>\n\n<quality>\nVerify IOPS via CloudWatch VolumeReadOps/VolumeWriteOps API for oversized check.\nBefore presenting, confirm cost calculations match volume sizes and types.\n</quality>",
+    "expects": "4-category EBS findings with cost per category + total savings.",
+    "tags": [
+      "cost",
+      "ebs",
+      "storage",
+      "gp2",
+      "gp3",
+      "snapshots",
+      "cleanup"
+    ]
+  },
+  {
+    "id": "rds-cost-optimization",
+    "title": "RDS Cost Optimization",
+    "category": "finops",
+    "services": [
+      "RDS",
+      "Aurora",
+      "CloudWatch"
+    ],
+    "difficulty": "intermediate",
+    "validated": true,
+    "description": "Find idle, oversized, or unoptimized RDS instances using CloudWatch metrics.",
+    "when": "RDS is a top cost driver, monthly cost review.",
+    "prompt": "<role>\nYou are a FinOps engineer analyzing AWS costs and efficiency.\n</role>\n\n<context>\nRDS cost optimization — RDS is frequently the #1 or #2 cost driver. Identify idle, oversized, and unoptimized instances.\n</context>\n\n<task>\nPaginate through all RDS instances and Aurora clusters. Verify each metric via CloudWatch API.\n\n1. IDLE: Instances with 0 DatabaseConnections in the last 7 days (average). Candidates for deletion or stop.\n2. OVERSIZED: Instances with average CPU <10% over 14 days. Suggest smaller instance class.\n3. GRAVITON: Instances on x86 classes (db.m5, db.r5, db.m6i, db.r6i) that could migrate to Graviton (db.m6g, db.r6g, db.m7g, db.r7g) for ~20% savings.\n4. STORAGE: Instances with allocated storage >2x used storage (check FreeStorageSpace metric).\n5. SINGLE-AZ: Production instances without Multi-AZ (risk flag, not cost saving).\n</task>\n\n<output>\nFor each finding: instance ID, current config, recommendation, estimated monthly savings.\nIf CloudWatch metrics are unavailable, state it — don't assume idle.\n</output>\n\n<quality>\nVerify metrics via CloudWatch API. Do not estimate CPU from instance type.\n</quality>",
+    "expects": "RDS findings by category with savings estimates.",
+    "tags": [
+      "cost",
+      "rds",
+      "aurora",
+      "rightsizing",
+      "graviton",
+      "idle"
+    ]
+  },
+  {
+    "id": "lambda-cost-optimization",
+    "title": "Lambda Cost Optimization",
+    "category": "finops",
+    "services": [
+      "Lambda",
+      "CloudWatch"
+    ],
+    "difficulty": "intermediate",
+    "validated": true,
+    "description": "Find unused, over-provisioned, and unoptimized Lambda functions.",
+    "when": "Lambda cost review, function cleanup.",
+    "prompt": "<role>\nYou are a FinOps engineer analyzing AWS costs and efficiency.\n</role>\n\n<task>\nAnalyze all Lambda functions for cost optimization.\nPaginate through ALL functions. Verify each finding via API.\n\n1. UNUSED: Functions with 0 invocations in the last 30 days (CloudWatch Invocations metric). Candidates for deletion.\n2. OVER-MEMORY: Functions where max memory used (CloudWatch MaxMemoryUsed) is <50% of allocated memory. Right-size the memory.\n3. X86 → ARM64: Functions on x86_64 that could migrate to arm64 for ~20% savings. Verify runtime supports ARM64.\n4. DEPRECATED RUNTIME: Functions on python3.8, python3.9, nodejs16.x, nodejs18.x, java11, dotnet6 or older.\n5. HIGH DURATION: Functions with average duration >10 seconds. May benefit from optimization or architecture change.\n</task>\n\n<output>\nFor each: function name, current config, finding, recommendation.\nSummary: total functions, % unused, % over-memory, % x86, potential savings.\n</output>\n\n<quality>\nVerify metrics via CloudWatch API. If metrics unavailable, state it.\n</quality>",
+    "expects": "Lambda findings by category with savings estimates.",
+    "tags": [
+      "cost",
+      "lambda",
+      "rightsizing",
+      "runtime",
+      "cleanup"
+    ]
+  },
+  {
+    "id": "s3-optimization",
+    "title": "S3 Storage Class & Lifecycle Review",
+    "category": "finops",
+    "services": [
+      "S3"
+    ],
+    "difficulty": "intermediate",
+    "validated": true,
+    "description": "Analyze S3 buckets for missing lifecycle policies, suboptimal storage classes, and silent cost growth.",
+    "when": "S3 costs growing, storage review, FinOps assessment.",
+    "prompt": "<role>\nYou are a FinOps engineer analyzing AWS costs and efficiency.\n</role>\n\n<context>\nS3 cost optimization — identify buckets where storage class selection and lifecycle policies can reduce costs.\n</context>\n\n<task>\nPaginate through all S3 buckets. For each bucket, check via API:\n\n1. NO LIFECYCLE: buckets without lifecycle policy (data stays in Standard forever).\n2. ALL STANDARD: buckets where 100% of data is in S3 Standard. If rarely accessed, Intelligent-Tiering or Standard-IA could save 40-60%.\n3. LARGE BUCKETS: buckets larger than 100GB. Show size, storage class distribution, monthly cost estimate.\n4. INCOMPLETE MULTIPART: check for incomplete multipart uploads (list-multipart-uploads). These consume storage silently.\n5. NO VERSIONING CLEANUP: buckets with versioning enabled but no lifecycle rule to expire old versions.\n</task>\n\n<output>\nFindings per category with bucket name, issue, estimated monthly cost, recommendation.\nIf bucket size cannot be determined without S3 Storage Lens, state the limitation.\n</output>\n\n<quality>\nVerify each attribute via get-bucket-lifecycle-configuration and get-bucket-versioning APIs.\nBefore presenting, confirm bucket counts per category are accurate.\n</quality>",
+    "expects": "5-category S3 findings with cost estimates and recommendations.",
+    "tags": [
+      "cost",
+      "s3",
+      "storage-class",
+      "lifecycle",
+      "multipart"
+    ]
+  },
+  {
+    "id": "cloudtrail-optimization",
+    "title": "CloudTrail Cost Optimization",
+    "category": "finops",
+    "services": [
+      "CloudTrail",
+      "S3"
+    ],
+    "difficulty": "intermediate",
+    "validated": true,
+    "description": "Find duplicate trails, expensive data events, and redundant multi-region configurations.",
+    "when": "CloudTrail costs unexpectedly high, trail configuration review.",
+    "prompt": "<role>\nYou are a FinOps engineer analyzing AWS costs and efficiency.\n</role>\n\n<context>\nCloudTrail cost optimization — identify duplicate trails and expensive configurations.\n</context>\n\n<task>\nList all trails via describe-trails API. For each trail, check via get-event-selectors:\n\n1. DUPLICATE TRAILS: multiple trails logging the same events in the same region. Only 1 management trail per region is free — additional ones cost $2/100K events.\n2. DATA EVENTS: trails with S3 or Lambda data events enabled. These can be very expensive at high volume.\n3. MULTI-REGION: trails with IsMultiRegionTrail=true. One is good for compliance. Multiple is waste.\n4. S3 DELIVERY: where are logs delivered? Multiple trails to different buckets means duplicate storage cost.\n5. CLOUDWATCH LOGS: trails delivering to CloudWatch Logs. Check if the log group has subscription filters or metric filters. If none, the CW Logs destination is redundant (logs already go to S3).\n</task>\n\n<output>\nFindings per category with trail name, configuration, estimated monthly cost impact, recommendation.\n</output>\n\n<quality>\nVerify trail configuration via describe-trails and get-event-selectors APIs.\nBefore presenting, confirm trail count and configuration details are accurate.\n</quality>",
+    "expects": "Trail inventory with duplicate/cost findings and recommendations.",
+    "tags": [
+      "cost",
+      "cloudtrail",
+      "logging",
+      "optimization"
+    ]
+  },
+  {
+    "id": "data-transfer-analysis",
+    "title": "Data Transfer Cost Analysis",
+    "category": "finops",
+    "services": [
+      "Cost Explorer",
+      "VPC"
+    ],
+    "difficulty": "intermediate",
+    "validated": true,
+    "description": "Break down data transfer costs by type — inter-AZ, inter-region, internet, NAT processing.",
+    "when": "Data transfer is a confusing cost driver, networking cost review.",
+    "prompt": "<role>\nYou are a FinOps engineer analyzing AWS costs and efficiency.\n</role>\n\n<task>\nAnalyze data transfer costs for the last 3 months:\n\n1. Total data transfer cost by month (trend)\n2. Break down by type: inter-AZ, inter-region, to internet, NAT Gateway processing\n3. Top 5 resources generating the most data transfer cost\n4. NAT Gateway data processing cost specifically\n</task>\n\n<scope>\nFlag:\n- Inter-AZ transfer that could be reduced with AZ-aware architecture\n- NAT Gateway processing that could be avoided with VPC Endpoints\n- Data transfer to internet that might benefit from CloudFront\n</scope>\n\n<quality>\nUse Cost Explorer with UsageType dimension to separate transfer types.\n</quality>",
+    "expects": "Data transfer breakdown by type with optimization recommendations.",
+    "tags": [
+      "cost",
+      "data-transfer",
+      "networking",
+      "nat-gateway"
+    ]
+  },
+  {
+    "id": "iam-role-audit",
+    "title": "IAM Role Least-Privilege Audit",
+    "category": "security",
+    "services": [
+      "IAM"
+    ],
+    "difficulty": "intermediate",
+    "validated": true,
+    "description": "Analyze an IAM role for overly permissive policies and generate a least-privilege recommendation.",
+    "when": "Quarterly security review, least-privilege initiative, pre-audit preparation.",
+    "prompt": "<role>\nYou are a cloud security engineer performing a security assessment.\n</role>\n\n<context>\nIAM least-privilege review — assess a role's permissions and recommend the minimum required access.\nComplement this analysis with IAM Access Analyzer for unused permissions detection.\n</context>\n\n<task>\nAnalyze IAM role [ROLE_ARN].\nVerify all findings via API (list-attached-role-policies, list-role-policies, get-role-policy for each inline policy, get-policy-version for managed policies).\n\n1. List all attached policies (managed and inline) — paginate if needed.\n2. For each policy, read the actual policy document — identify: wildcards (*) in Action or Resource, overly broad permissions.\n3. Check trust policy for multiple principals (role sharing).\n</task>\n\n<output>\nCurrent state: risk table per policy (HIGH/MEDIUM/LOW).\nRecommended state: least-privilege version with only required actions and resources.\nShow the diff between current and recommended.\n</output>\n\n<quality>\nRead the actual policy document via get-policy-version API — permissions may differ from what the policy name suggests.\n</quality>",
+    "expects": "Policy risk assessment + least-privilege recommendation + diff.",
+    "tags": [
+      "security",
+      "iam",
+      "least-privilege",
+      "audit"
+    ]
+  },
+  {
+    "id": "security-group-audit",
+    "title": "Security Group Open Access Audit",
+    "category": "security",
+    "services": [
+      "EC2",
+      "VPC"
+    ],
+    "difficulty": "beginner",
+    "validated": true,
+    "description": "Find security groups with overly permissive inbound rules (0.0.0.0/0) that expose resources to the internet.",
+    "when": "Security assessment, compliance check, incident investigation.",
+    "prompt": "<role>\nYou are a cloud security engineer performing a security assessment.\n</role>\n\n<context>\nNetwork security audit — identify security groups that expose resources to unrestricted internet access.\n</context>\n\n<task>\nList all security groups with inbound rules allowing 0.0.0.0/0 or ::/0.\nFor each: security group ID, name, VPC, the specific rule (port range, protocol), and what resources use this SG.\nPaginate through all security groups.\n</task>\n\n<scope>\n- CRITICAL: 0.0.0.0/0 on ports 22 (SSH) or 3389 (RDP) — direct admin access from internet\n- HIGH: 0.0.0.0/0 on any port — unrestricted access\n- MEDIUM: 0.0.0.0/0 on ports 80/443 only — may be intentional for web servers (verify)\n</scope>\n\n<output>\nFindings table by severity with SG details and associated resources.\nTotal count of open security groups.\n</output>\n\n<quality>\nVerify rules via describe-security-groups API.\nBefore presenting, confirm total count matches the sum of findings by severity.\n</quality>",
+    "expects": "Open SG inventory with severity classification and associated resources.",
+    "tags": [
+      "security",
+      "network",
+      "security-groups",
+      "compliance"
+    ]
+  },
+  {
+    "id": "iac-security-review",
+    "title": "IaC Security Review",
+    "category": "security",
+    "services": [
+      "CloudFormation",
+      "S3",
+      "IAM"
+    ],
+    "difficulty": "intermediate",
+    "validated": true,
+    "description": "Review CloudFormation/Terraform templates for security issues before deployment.",
+    "when": "Pre-deployment security check, code review.",
+    "prompt": "<role>\nYou are a cloud security engineer performing a security assessment.\n</role>\n\n<task>\nReview templates at [PATH] for security issues.\nFor each check, read the actual template file — do not assume compliance from filename or directory.\n\n- S3 without encryption or public access block\n- Security groups with 0.0.0.0/0 on 22 or 3389\n- IAM with wildcard permissions\n- Resources without encryption at rest\n- Missing IMDSv2 enforcement (HttpTokens: required)\n- Hardcoded secrets or credentials\n</task>\n\n<output>\nFor each: | Severity | File:Line | Issue | Risk | Fix |\n\nIf a template uses parameters or conditions that make a check ambiguous, state \"conditional — verify at deploy time\" instead of assuming safe or unsafe.\nAsk before auto-fixing.\n</output>\n\n<quality>\nVerify all findings via API calls. Paginate through all results.\nReport only verified data. State limitations if any API returns incomplete results.\n</quality>",
+    "expects": "Security findings table with severity, location, and fix.",
+    "tags": [
+      "security",
+      "iac",
+      "pre-deployment",
+      "review"
+    ]
+  },
+  {
+    "id": "compliance-snapshot",
+    "title": "Compliance Posture Snapshot",
+    "category": "compliance",
+    "services": [
+      "EC2",
+      "RDS",
+      "S3",
+      "IAM",
+      "CloudTrail",
+      "VPC"
+    ],
+    "difficulty": "intermediate",
+    "validated": true,
+    "description": "Quick compliance assessment across encryption, access, logging, network, and backup.",
+    "when": "Preparing for audit, quarterly security review, new account assessment.",
+    "prompt": "<role>\nYou are a cloud governance engineer auditing compliance and governance.\n</role>\n\n<context>\nCompliance posture assessment — evaluate this account against security baselines across five dimensions.\n</context>\n\n<task>\nFor each check, make the actual API call — verify compliance through data, not naming conventions.\n\n1. ENCRYPTION: EBS volumes (Encrypted field), RDS (StorageEncrypted), S3 (get-bucket-encryption per bucket).\n2. ACCESS: IAM users with console access (list-users + get-login-profile), root account MFA status (get-account-summary → AccountMFAEnabled).\n3. LOGGING: CloudTrail enabled (describe-trails), VPC Flow Logs coverage per VPC (describe-flow-logs), S3 access logging.\n4. NETWORK: Security groups with 0.0.0.0/0 inbound, public subnets with auto-assign public IP, public RDS instances, IMDSv2 enforcement.\n5. BACKUP: AWS Backup plans (list-backup-plans), RDS backup retention (BackupRetentionPeriod > 0).\n</task>\n\n<output>\nPer dimension: COMPLIANT | PARTIAL | NON-COMPLIANT with specific findings.\nOverall score: X/5 dimensions compliant.\nIf any check fails or returns insufficient data, report it — don't skip.\n</output>\n\n<quality>\nVerify every finding via API. Report findings even if they are positive (compliant).\nBefore presenting, verify that percentages are mathematically correct.\n</quality>",
+    "expects": "5-dimension compliance scorecard with specific findings.",
+    "tags": [
+      "compliance",
+      "security",
+      "audit",
+      "encryption"
+    ]
+  },
+  {
+    "id": "tag-compliance",
+    "title": "Tag Compliance Report",
+    "category": "compliance",
+    "services": [
+      "EC2",
+      "RDS",
+      "Lambda",
+      "S3",
+      "ECS"
+    ],
+    "difficulty": "beginner",
+    "validated": true,
+    "description": "Check tag compliance across resource types for required tags. Tags are configurable.",
+    "when": "Governance review, cost allocation audit, compliance check.",
+    "prompt": "<role>\nYou are a cloud governance engineer auditing compliance and governance.\n</role>\n\n<context>\nTag compliance assessment — verify that all resources have the required tags for cost allocation and governance.\nRequired tags: [Environment, Owner, CostCenter] — replace with your organization's required tags.\n</context>\n\n<task>\nCheck these resource types via API: EC2 (describe-instances), RDS (describe-db-clusters + describe-db-instances), Lambda (list-functions + list-tags per function), S3 (get-bucket-tagging per bucket), ECS (describe-clusters + list-tags-for-resource).\n\nPaginate through all resources for each type.\n</task>\n\n<output>\nFor each resource type:\n- Total resources\n- Percentage with all required tags\n- Percentage missing each specific tag\n- List of non-compliant resources (ID + missing tags)\n\nOverall tag compliance: X% of resources fully tagged.\nNote: S3 get-bucket-tagging requires one API call per bucket — may be slow with 100+ buckets.\n</output>\n\n<quality>\nVerify tags via actual API calls — do not infer tag presence from resource names.\nBefore presenting, confirm percentages are mathematically correct and totals match.\n</quality>",
+    "expects": "Per-resource-type tag compliance with non-compliant resource list.",
+    "tags": [
+      "compliance",
+      "tags",
+      "governance",
+      "cost-allocation"
+    ]
+  },
+  {
+    "id": "incident-triage",
+    "title": "Incident Triage — What Changed?",
+    "category": "incident",
+    "services": [
+      "CloudTrail",
+      "IAM",
+      "EC2",
+      "Lambda"
+    ],
+    "difficulty": "intermediate",
+    "validated": true,
+    "description": "When something breaks, find what changed in the last 24 hours across IAM, infrastructure, config, and network.",
+    "when": "Something broke and you don't know what changed.",
+    "prompt": "<role>\nYou are an incident responder performing triage and evidence collection.\n</role>\n\n<context>\nIncident triage — something broke in the last 24 hours. Identify what changed.\n</context>\n\n<task>\nCheck CloudTrail for the last 24 hours via LookupEvents API and categorize changes:\n1. IAM changes: new roles, policy attachments, permission changes\n2. Infrastructure changes: EC2 launches/terminations, security group modifications, RDS changes\n3. Configuration changes: Lambda updates, ECS deployments, CloudFormation stack operations\n4. Network changes: VPC, subnet, route table, NAT Gateway modifications\n</task>\n\n<output>\nFor each change: timestamp, who (IAM principal), what (API call), result.\nSort by timestamp (most recent first).\nFocus on changes that could cause an outage — filter out read-only API calls.\n</output>\n\n<quality>\nVerify via CloudTrail LookupEvents API. Report only write events.\nBefore presenting, confirm the timeline is sorted correctly (most recent first).\n</quality>",
+    "expects": "Chronological timeline of infrastructure changes categorized by type.",
+    "tags": [
+      "incident",
+      "triage",
+      "cloudtrail",
+      "changes",
+      "root-cause"
+    ]
+  },
+  {
+    "id": "post-incident-evidence",
+    "title": "Post-Incident Evidence Collection",
+    "category": "incident",
+    "services": [
+      "CloudTrail",
+      "CloudWatch",
+      "ECS",
+      "Lambda"
+    ],
+    "difficulty": "intermediate",
+    "validated": true,
+    "description": "Collect timeline evidence from CloudTrail, CloudWatch, and service logs for RCA after an incident.",
+    "when": "After an incident, building timeline for root cause analysis.",
+    "prompt": "<role>\nYou are an incident responder performing triage and evidence collection.\n</role>\n\n<task>\nWe had an incident between [START_TIME] and [END_TIME] affecting [SERVICE/ENDPOINT].\n\nBuild an incident timeline:\n1. CloudTrail: all write events in that time window related to [SERVICE]\n2. CloudWatch: alarm state changes in that window\n3. ECS/Lambda: any deployments or configuration changes\n4. CloudWatch Logs: error patterns in [LOG_GROUP] during the window\n</task>\n\n<output>\nPresent as a chronological timeline:\n| Time | Source | Event | Who | Impact |\n\nEnd with: probable root cause based on the evidence, and what to investigate further.\n</output>\n\n<quality>\nOnly include events verified via API. If a data source is unavailable, state it.\n</quality>",
+    "expects": "Chronological incident timeline with evidence-based root cause.",
+    "tags": [
+      "incident",
+      "rca",
+      "timeline",
+      "evidence"
+    ]
+  },
+  {
+    "id": "s3-inventory",
+    "title": "S3 Inventory & Classification",
+    "category": "exploration",
+    "services": [
+      "S3"
+    ],
+    "difficulty": "beginner",
+    "validated": true,
+    "description": "Inventory all S3 buckets grouped by purpose with cleanup candidates identified.",
+    "when": "Storage audit, cost review, security assessment.",
+    "prompt": "<role>\nYou are a senior cloud operations engineer performing an infrastructure assessment.\n</role>\n\n<task>\nList ALL S3 buckets grouped by purpose (infer from naming prefix).\nPaginate through all results — confirm total bucket count at the end.\nOnly report attributes you have verified via API.\n\nGroup by:\n- Logging/audit (cloudtrail, flowlogs, access-logs)\n- Application data (frontend, code, deploy, exports)\n- Analytics/data lake (athena, glue, sagemaker)\n- Backup/DR (backup, resilience)\n- Other/unknown\n\nFor each bucket show: name, creation date, region.\n\nAfter grouping, flag:\n- Buckets with names suggesting test/manual creation (launch-wizard, test, demo)\n- Buckets older than 1 year that might be orphaned\n- Multiple buckets that appear to serve the same purpose (duplicates)\n</task>\n\n<output>\nSummary: total buckets, % by category, estimated cleanup candidates.\n</output>\n\n<quality>\nVerify all findings via API calls. Paginate through all results.\nReport only verified data. State limitations if any API returns incomplete results.\n</quality>",
+    "expects": "Categorized bucket inventory with cleanup candidates.",
+    "tags": [
+      "s3",
+      "inventory",
+      "cleanup",
+      "classification"
+    ]
+  },
+  {
+    "id": "s3-security-audit",
+    "title": "S3 Security Audit",
+    "category": "security",
+    "services": [
+      "S3"
+    ],
+    "difficulty": "beginner",
+    "validated": true,
+    "description": "Verify all S3 buckets have encryption, public access block, versioning, and lifecycle policies.",
+    "when": "Security assessment, compliance check.",
+    "prompt": "<role>\nYou are a cloud security engineer performing a security assessment.\n</role>\n\n<task>\nFor each S3 bucket in this account, check:\n1. Is Block Public Access enabled? (all 4 settings should be true)\n2. Is default encryption configured? (SSE-S3 or SSE-KMS)\n3. Is versioning enabled?\n4. Is there a lifecycle policy?\n\nCheck EVERY bucket — paginate through the full list. For each check, make the actual API call (GetPublicAccessBlock, GetBucketEncryption, GetBucketVersioning, GetBucketLifecycleConfiguration). If an API returns an error (e.g., NoSuchPublicAccessBlockConfiguration), that means the setting is NOT configured — report it as non-compliant, don't skip it.\n</task>\n\n<output>\nShow results as a table: Bucket | Public Access Block | Encryption | Versioning | Lifecycle\nFlag any bucket that fails any check.\nSummary: % compliant across all 4 checks.\n</output>\n\n<quality>\nVerify all findings via API calls. Paginate through all results.\nReport only verified data. State limitations if any API returns incomplete results.\n</quality>",
+    "expects": "S3 security compliance table with per-bucket results.",
+    "tags": [
+      "s3",
+      "security",
+      "encryption",
+      "compliance"
+    ]
+  },
+  {
+    "id": "steering-generator",
+    "title": "Kiro Steering Files Generator",
+    "category": "governance",
+    "services": [],
+    "difficulty": "beginner",
+    "validated": true,
+    "description": "Create Kiro steering files customized for your team's standards and conventions.",
+    "when": "Setting up Kiro for a new team or project.",
+    "prompt": "<role>\nYou are a cloud platform engineer creating governance guardrails.\n</role>\n\n<task>\nHelp me create Kiro steering files for my team.\n\nAsk me these questions one at a time, then generate the files:\n1. Company name and industry?\n2. Main workloads on AWS?\n3. Preferred languages and runtimes?\n4. IaC tool (CloudFormation/Terraform/CDK)?\n5. Required tags on all resources?\n6. Naming convention?\n7. Compliance requirements?\n\nGenerate: product.md, tech.md, structure.md for the .kiro/steering/ folder.\n</task>\n\n<quality>\nVerify all findings via API calls. Paginate through all results.\nReport only verified data. State limitations if any API returns incomplete results.\n</quality>",
+    "expects": "Three steering files customized for the team.",
+    "tags": [
+      "governance",
+      "steering",
+      "setup",
+      "standards"
+    ]
+  },
+  {
+    "id": "webapp-iac-generator",
+    "title": "Web App IaC Generator",
+    "category": "iac",
+    "services": [
+      "API Gateway",
+      "Lambda",
+      "DynamoDB",
+      "IAM"
+    ],
+    "difficulty": "beginner",
+    "validated": true,
+    "description": "Generate a complete CloudFormation/Terraform/CDK template for a serverless web application.",
+    "when": "Prototypes, POCs, demos, or bootstrapping new projects.",
+    "prompt": "<role>\nYou are an infrastructure engineer generating production-ready IaC templates.\n</role>\n\n<task>\nCreate a CloudFormation template for a web application:\n\n<requirements>\n- API Gateway HTTP API with CORS\n- Lambda function in Python 3.12, ARM64\n- DynamoDB table for [YOUR_DATA_MODEL]\n- IAM roles with least privilege only\n</requirements>\n\n<constraints>\n- Tags: Environment=[ENV], Owner=[TEAM], CostCenter=[CC]\n- Lambda: 256MB memory, 15s timeout\n- DynamoDB: PAY_PER_REQUEST\n- Include Outputs for API endpoint URL\n</constraints>\n\nGenerate the template (YAML) and the Lambda code.\n</task>\n\nVariant: Replace \"CloudFormation template\" with \"Terraform configuration\" or \"CDK stack in TypeScript\" as needed.\n\n<quality>\nVerify all findings via API calls. Paginate through all results.\nReport only verified data. State limitations if any API returns incomplete results.\n</quality>",
+    "expects": "Complete IaC template + Lambda code ready to deploy.",
+    "tags": [
+      "iac",
+      "cloudformation",
+      "terraform",
+      "cdk",
+      "serverless"
+    ]
+  },
+  {
+    "id": "cost-governance-scp",
+    "title": "Cost Governance SCP Generator",
+    "category": "governance",
+    "services": [
+      "Organizations",
+      "IAM"
+    ],
+    "difficulty": "intermediate",
+    "validated": true,
+    "description": "Generate Service Control Policies to prevent cost waste at the organizational level.",
+    "when": "Preventing waste org-wide, governance setup.",
+    "prompt": "<role>\nYou are a cloud platform engineer creating governance guardrails.\n</role>\n\n<task>\nCreate an SCP enforcing:\n1. EBS: GP3 only (deny GP2 creation)\n2. EC2: Graviton families only for new launches\n3. Tags required: Environment, Owner, CostCenter\n4. Regions: only [REGION_1] and [REGION_2]\n5. Deny NAT Gateway creation outside networking account\n\nGenerate complete JSON. Explain each statement in plain English.\n</task>\n\n<quality>\nVerify all findings via API calls. Paginate through all results.\nReport only verified data. State limitations if any API returns incomplete results.\n</quality>",
+    "expects": "Complete SCP JSON with plain-English explanations.",
+    "tags": [
+      "governance",
+      "scp",
+      "cost",
+      "prevention"
+    ]
+  },
+  {
+    "id": "compute-optimizer-review",
+    "title": "Compute Optimizer Recommendations Review",
+    "category": "finops",
+    "services": [
+      "Compute Optimizer",
+      "EC2",
+      "Lambda",
+      "EBS"
+    ],
+    "difficulty": "beginner",
+    "validated": true,
+    "description": "Review AWS Compute Optimizer recommendations for rightsizing and Graviton migration.",
+    "when": "Monthly cost review, rightsizing initiative.",
+    "prompt": "<role>\nYou are a FinOps engineer analyzing AWS costs and efficiency.\n</role>\n\n<task>\nGet Compute Optimizer recommendations for this account.\nPaginate through all recommendations. Verify each recommendation exists via API — do not fabricate savings estimates.\n\nTable: Resource ID, Type, Current Config, Recommended, Monthly Savings.\nSort by savings (highest first).\n\nGroup by type: Rightsizing, Graviton migration, Storage optimization.\nIdentify top 3 quick wins (highest savings, lowest effort).\nTotal potential monthly savings at the end.\nIf Compute Optimizer is not enrolled, state it — don't return empty results without explanation.\n</task>\n\n<quality>\nVerify all findings via API calls. Paginate through all results.\nReport only verified data. State limitations if any API returns incomplete results.\n</quality>",
+    "expects": "Prioritized recommendations with savings estimates.",
+    "tags": [
+      "cost",
+      "rightsizing",
+      "graviton",
+      "compute-optimizer"
+    ]
+  },
+  {
+    "id": "backup-dr-readiness",
+    "title": "Backup & DR Readiness Assessment",
+    "category": "resilience",
+    "services": [
+      "AWS Backup",
+      "RDS",
+      "EBS",
+      "S3",
+      "DynamoDB"
+    ],
+    "difficulty": "intermediate",
+    "validated": true,
+    "description": "Assess backup coverage, RPO/RTO gaps, and disaster recovery readiness across all resource types.",
+    "when": "DR planning, compliance audit, post-incident review, or quarterly resilience check.",
+    "prompt": "<role>\nYou are a reliability engineer assessing backup and disaster recovery readiness.\n</role>\n\n<context>\nBackup & DR assessment — identify resources without backup protection and evaluate RPO/RTO gaps.\n</context>\n\n<task>\n1. List all AWS Backup plans with: name, frequency, retention, target resources. Use backup.ListBackupPlans and backup.ListProtectedResources APIs.\n2. Cross-reference against all EC2 instances, RDS clusters, EBS volumes, DynamoDB tables, and EFS file systems.\n3. Identify resources NOT covered by any backup plan.\n4. For covered resources, evaluate if backup frequency meets a 1-hour RPO target.\n5. Check for cross-region backup copies (backup vaults in secondary region).\n</task>\n\n<output>\nBackup coverage table: Resource Type | Total | Protected | Unprotected | Coverage %\nGap analysis: resources without backup, sorted by criticality.\nRPO assessment: backup frequency vs target RPO.\nDR readiness: cross-region backup status.\n</output>\n\n<quality>\nVerify protection status via API — do not assume a resource is protected based on tags alone.\nPaginate through all resources for each service.\n</quality>",
+    "expects": "Backup coverage matrix + unprotected resources + RPO/RTO gap analysis.",
+    "tags": [
+      "backup",
+      "dr",
+      "resilience",
+      "rpo",
+      "rto",
+      "compliance"
+    ]
+  },
+  {
+    "id": "eol-version-lifecycle",
+    "title": "End-of-Support Version Scan",
+    "category": "resilience",
+    "services": [
+      "RDS",
+      "EKS",
+      "Lambda",
+      "ElastiCache",
+      "OpenSearch"
+    ],
+    "difficulty": "intermediate",
+    "validated": true,
+    "description": "Scan all managed services for versions approaching or past end of standard support — RDS engines, EKS clusters, Lambda runtimes, ElastiCache, OpenSearch.",
+    "when": "Quarterly version lifecycle review, upgrade planning, or compliance check.",
+    "prompt": "<role>\nYou are a platform engineer performing a version lifecycle review to identify end-of-support risks.\n</role>\n\n<context>\nVersion lifecycle scan — identify resources running versions that are approaching or past end of standard support, which may incur extended support charges or lose security patches.\n</context>\n\n<task>\nFor each service, list all resources with their current version and check against known EOL dates:\n1. RDS/Aurora — engine version for all clusters and instances. Flag versions within 6 months of end of standard support.\n2. EKS — cluster Kubernetes version. Flag versions within 4 months of end of standard support.\n3. Lambda — runtime for all functions. Flag deprecated or end-of-support runtimes.\n4. ElastiCache — engine version for all clusters. Flag versions approaching EOL.\n5. OpenSearch — domain engine version. Flag versions approaching EOL.\nPaginate through all resources for each service.\n</task>\n\n<output>\nPer-service table: Resource | Current Version | EOL Date | Status (OK / Warning / Critical)\nSummary: total resources scanned, % at risk, upgrade priority list.\n</output>\n\n<quality>\nVerify versions via describe APIs. Check AWS documentation for current EOL dates.\nIf EOL date is uncertain, state it and recommend checking the official version lifecycle page.\n</quality>",
+    "expects": "Per-service version inventory with EOL status and upgrade priority list.",
+    "tags": [
+      "eol",
+      "lifecycle",
+      "versions",
+      "upgrade",
+      "compliance"
+    ]
+  },
+  {
+    "id": "multi-az-resilience",
+    "title": "Multi-AZ Resilience Check",
+    "category": "resilience",
+    "services": [
+      "EC2",
+      "RDS",
+      "ELB",
+      "ECS",
+      "ElastiCache"
+    ],
+    "difficulty": "intermediate",
+    "validated": true,
+    "description": "Identify single-AZ deployments across compute, database, and networking — the most common cause of avoidable outages.",
+    "when": "Resilience review, Well-Architected assessment, or post-AZ-outage analysis.",
+    "prompt": "<role>\nYou are a reliability engineer identifying single points of failure caused by single-AZ deployments.\n</role>\n\n<context>\nMulti-AZ resilience check — single-AZ deployments are the most common cause of avoidable outages during AZ impairments.\n</context>\n\n<task>\nCheck each service for AZ distribution:\n1. EC2 — group running instances by AZ. Flag if >80% of instances are in a single AZ.\n2. RDS/Aurora — check MultiAZ status for all clusters and instances. Flag single-AZ production databases.\n3. ELB — check subnets for each load balancer. Flag ALBs/NLBs in fewer than 2 AZs.\n4. ECS — for each service, check task placement across AZs. Flag services with all tasks in one AZ.\n5. ElastiCache — check cluster mode and AZ distribution. Flag single-AZ replication groups.\n</task>\n\n<output>\nPer-service AZ distribution table.\nFindings by severity: CRITICAL (production single-AZ), HIGH (non-production single-AZ), MEDIUM (unbalanced).\nSummary: % of resources with multi-AZ protection.\n</output>\n\n<quality>\nVerify AZ placement via describe APIs. Do not infer AZ from subnet names — check actual placement.\n</quality>",
+    "expects": "AZ distribution per service + single-AZ findings by severity.",
+    "tags": [
+      "resilience",
+      "multi-az",
+      "availability",
+      "single-point-of-failure"
+    ]
+  },
+  {
+    "id": "guardduty-triage",
+    "title": "GuardDuty Findings Triage",
+    "category": "security",
+    "services": [
+      "GuardDuty"
+    ],
+    "difficulty": "intermediate",
+    "validated": true,
+    "description": "Triage active GuardDuty findings by severity — identify critical threats, group by type, and provide remediation guidance.",
+    "when": "Security review, incident response, or weekly security hygiene check.",
+    "prompt": "<role>\nYou are a security operations engineer triaging GuardDuty findings to prioritize remediation.\n</role>\n\n<context>\nGuardDuty findings triage — review active findings to identify real threats vs noise and prioritize response.\n</context>\n\n<task>\n1. Get the GuardDuty detector ID via guardduty.ListDetectors.\n2. Get finding statistics grouped by severity and type via guardduty.GetFindingsStatistics.\n3. List findings filtered by severity (HIGH first, then MEDIUM) via guardduty.ListFindings.\n4. For each HIGH severity finding, get details via guardduty.GetFindings — extract: type, resource, actor IP, count, first/last seen.\n</task>\n\n<output>\nSummary: total findings by severity (High/Medium/Low).\nHigh severity table: Finding Type | Resource | Actor | Count | First Seen | Recommended Action.\nTop 3 remediation priorities with specific steps.\n</output>\n\n<quality>\nVerify findings via API. If GetFindings is access-denied, report the limitation and provide statistics only.\nDo not fabricate finding details — report only what the API returns.\n</quality>",
+    "expects": "Finding severity summary + high-priority findings table + remediation steps.",
+    "tags": [
+      "security",
+      "guardduty",
+      "threat-detection",
+      "triage",
+      "remediation"
+    ]
+  },
+  {
+    "id": "secrets-credentials-audit",
+    "title": "Credentials & Secrets Hygiene",
+    "category": "security",
+    "services": [
+      "IAM",
+      "Secrets Manager",
+      "SSM Parameter Store"
+    ],
+    "difficulty": "intermediate",
+    "validated": true,
+    "description": "Audit IAM access keys age, unused credentials, root account status, and secrets rotation compliance.",
+    "when": "Quarterly security review, compliance audit, or credential rotation initiative.",
+    "prompt": "<role>\nYou are an IAM security specialist auditing credential hygiene and secrets management.\n</role>\n\n<context>\nCredentials audit — identify stale access keys, unused credentials, and secrets rotation gaps that increase breach risk.\n</context>\n\n<task>\n1. Generate IAM credential report via iam.GenerateCredentialReport then iam.GetCredentialReport.\n2. From the report, identify:\n   - Access keys older than 90 days (flag >180 days as CRITICAL)\n   - Access keys never used\n   - Users with console access but no MFA\n   - Root account: MFA status, access key presence\n3. List Secrets Manager secrets via secretsmanager.ListSecrets — check rotation status and last rotated date.\n4. Check SSM Parameter Store for SecureString parameters without rotation.\n</task>\n\n<output>\nCredential hygiene scorecard:\n| Check | Status | Count | Finding |\nAccess keys age distribution chart.\nTop remediation priorities.\n</output>\n\n<quality>\nVerify via credential report API — do not infer from user names.\nIf credential report generation takes time, wait and retry.\n</quality>",
+    "expects": "Credential hygiene scorecard + stale keys list + rotation gaps.",
+    "tags": [
+      "security",
+      "iam",
+      "credentials",
+      "access-keys",
+      "secrets",
+      "rotation"
+    ]
+  },
+  {
+    "id": "savings-plans-coverage",
+    "title": "Savings Plans & RI Coverage Analysis",
+    "category": "finops",
+    "services": [
+      "Cost Explorer",
+      "EC2",
+      "Savings Plans"
+    ],
+    "difficulty": "intermediate",
+    "validated": true,
+    "description": "Analyze Savings Plans and Reserved Instance coverage — find on-demand waste and recommend optimal commitments.",
+    "when": "FinOps review, commitment planning, or RI/SP expiration approaching.",
+    "prompt": "<role>\nYou are a FinOps analyst evaluating compute commitment coverage to minimize on-demand waste.\n</role>\n\n<context>\nSavings Plans & RI coverage analysis — identify on-demand spend that could be covered by commitments for 20-60% savings.\n</context>\n\n<task>\n1. Use Cost Explorer GetSavingsPlansCoverage API — last 30 days, daily granularity. Calculate average coverage %.\n2. Use Cost Explorer GetSavingsPlansUtilization API — verify existing SPs are being fully utilized.\n3. Use Cost Explorer GetReservationCoverage API — check RI coverage for EC2, RDS, ElastiCache.\n4. Use Cost Explorer GetSavingsPlansPurchaseRecommendation API — get AWS recommendations for new commitments.\n5. Identify on-demand spend not covered by any commitment.\n</task>\n\n<output>\nCoverage summary: SP coverage %, RI coverage %, on-demand %.\nUtilization: are existing commitments fully used?\nRecommendation: suggested new commitments with estimated savings.\nExpiring commitments in next 30/60/90 days.\n</output>\n\n<quality>\nUse Cost Explorer APIs — do not estimate from instance counts.\nVerify utilization data before recommending new purchases.\n</quality>",
+    "expects": "Coverage/utilization summary + on-demand waste + purchase recommendations.",
+    "tags": [
+      "finops",
+      "savings-plans",
+      "reserved-instances",
+      "coverage",
+      "commitments"
+    ]
+  },
+  {
+    "id": "dynamodb-optimization",
+    "title": "DynamoDB Cost & Configuration Review",
+    "category": "finops",
+    "services": [
+      "DynamoDB",
+      "CloudWatch"
+    ],
+    "difficulty": "intermediate",
+    "validated": true,
+    "description": "Review DynamoDB tables for capacity mode optimization, unused tables, expensive GSIs, and missing auto-scaling.",
+    "when": "DynamoDB costs growing, capacity planning, or FinOps review.",
+    "prompt": "<role>\nYou are a database cost optimization specialist reviewing DynamoDB table configurations.\n</role>\n\n<context>\nDynamoDB optimization — identify tables where capacity mode, GSI configuration, or auto-scaling settings are wasting money.\n</context>\n\n<task>\nList all DynamoDB tables via dynamodb.ListTables, then dynamodb.DescribeTable for each:\n1. CAPACITY MODE: tables in Provisioned mode with low utilization — candidates for On-Demand.\n2. UNUSED TABLES: tables with 0 read/write operations in last 14 days (check CloudWatch ConsumedReadCapacityUnits + ConsumedWriteCapacityUnits).\n3. GSI WASTE: Global Secondary Indexes with 0 reads in last 14 days — paying for unused indexes.\n4. AUTO-SCALING: Provisioned tables without auto-scaling configured.\n5. BACKUP: tables without point-in-time recovery (PITR) enabled.\nPaginate through all tables.\n</task>\n\n<output>\nTable inventory with capacity mode, RCU/WCU, GSI count, PITR status.\nFindings by category with estimated monthly cost per finding.\nTotal potential savings.\n</output>\n\n<quality>\nVerify utilization via CloudWatch metrics — do not assume from provisioned capacity alone.\nPaginate through all tables.\n</quality>",
+    "expects": "Table inventory + capacity/GSI/scaling findings + savings estimate.",
+    "tags": [
+      "finops",
+      "dynamodb",
+      "capacity",
+      "gsi",
+      "auto-scaling"
+    ]
+  },
+  {
+    "id": "cloudfront-optimization",
+    "title": "CloudFront Distribution Review",
+    "category": "networking",
+    "services": [
+      "CloudFront",
+      "S3",
+      "CloudWatch"
+    ],
+    "difficulty": "intermediate",
+    "validated": true,
+    "description": "Review CloudFront distributions for cache hit ratio, origin configuration, and cost optimization opportunities.",
+    "when": "CDN cost review, performance optimization, or architecture assessment.",
+    "prompt": "<role>\nYou are a CDN specialist reviewing CloudFront distributions for performance and cost optimization.\n</role>\n\n<context>\nCloudFront review — optimize cache hit ratio, identify misconfigured origins, and reduce data transfer costs.\n</context>\n\n<task>\n1. List all CloudFront distributions via cloudfront.ListDistributions.\n2. For each distribution: ID, domain, origins, status, price class, WAF association.\n3. Check CloudWatch metrics (last 7 days): CacheHitRate, Requests, BytesDownloaded, 4xxErrorRate, 5xxErrorRate.\n4. Identify optimization opportunities:\n   - Cache hit ratio below 80% (caching not effective)\n   - Distributions without WAF (security gap)\n   - Price class ALL (paying for edge locations you may not need)\n   - Origins pointing to S3 without OAC/OAI (direct access possible)\n   - High 4xx/5xx error rates\n</task>\n\n<output>\nDistribution inventory table.\nPerformance metrics per distribution.\nFindings by severity with recommendations.\n</output>\n\n<quality>\nVerify metrics via CloudWatch API. If metrics are unavailable, state the limitation.\n</quality>",
+    "expects": "Distribution inventory + cache performance + optimization findings.",
+    "tags": [
+      "networking",
+      "cloudfront",
+      "cdn",
+      "cache",
+      "performance",
+      "cost"
+    ]
+  },
+  {
+    "id": "multi-account-overview",
+    "title": "Multi-Account Organization Overview",
+    "category": "exploration",
+    "services": [
+      "Organizations",
+      "Cost Explorer"
+    ],
+    "difficulty": "intermediate",
+    "validated": false,
+    "description": "Map your AWS Organization — accounts, OUs, spend per account, and identify shadow accounts or cost anomalies.",
+    "when": "Organization governance review, new TAM onboarding, or cost allocation audit.",
+    "prompt": "<role>\nYou are a cloud governance architect mapping an AWS Organization for visibility and cost accountability.\n</role>\n\n<context>\nOrganization overview — understand the account structure, identify cost drivers per account, and flag governance gaps.\n</context>\n\n<task>\n1. List all accounts in the organization via organizations.ListAccounts. Show: account ID, name, email, status, joined date.\n2. Use Cost Explorer to get last month's spend per account (GROUP_BY LINKED_ACCOUNT).\n3. Identify:\n   - Accounts with $0 spend (possibly unused)\n   - Accounts with >20% MoM spend increase (anomaly)\n   - Accounts without meaningful name (governance gap)\n   - Accounts joined in last 30 days (new, verify purpose)\n</task>\n\n<output>\nAccount inventory sorted by spend (highest first).\nTop 5 accounts by cost with MoM trend.\nGovernance findings.\nSummary: total accounts, active vs inactive, total org spend.\n</output>\n\n<quality>\nPaginate through all accounts. Verify spend via Cost Explorer API.\nIf Organizations API is access-denied, state the limitation.\n</quality>",
+    "expects": "Account inventory with spend + governance findings + anomalies.",
+    "tags": [
+      "organizations",
+      "multi-account",
+      "governance",
+      "cost-allocation"
+    ]
+  },
+  {
+    "id": "route53-health",
+    "title": "Route 53 DNS Health & Hygiene",
+    "category": "exploration",
+    "services": [
+      "Route 53"
+    ],
+    "difficulty": "beginner",
+    "validated": true,
+    "description": "Audit Route 53 hosted zones, health checks, and DNS records for orphaned entries and missing health checks.",
+    "when": "DNS review, domain migration, or operational hygiene check.",
+    "prompt": "<role>\nYou are a DNS operations engineer auditing Route 53 for hygiene and reliability.\n</role>\n\n<context>\nRoute 53 DNS audit — identify orphaned records, missing health checks, and configuration issues.\n</context>\n\n<task>\n1. List all hosted zones via route53.ListHostedZones. Show: zone name, type (public/private), record count.\n2. For each zone, list record sets via route53.ListResourceRecordSets.\n3. List all health checks via route53.ListHealthChecks. Show: ID, type, target, status.\n4. Identify:\n   - CNAME or A records pointing to non-existent resources (orphaned)\n   - Alias records to deleted ELBs, CloudFront distributions, or S3 buckets\n   - Failover or weighted routing without health checks\n   - Health checks in unhealthy status\n</task>\n\n<output>\nHosted zone inventory.\nHealth check status table.\nFindings: orphaned records, missing health checks, unhealthy checks.\n</output>\n\n<quality>\nVerify record targets exist by cross-referencing with ELB, CloudFront, and S3 APIs where possible.\nPaginate through all zones and records.\n</quality>",
+    "expects": "Zone inventory + health check status + orphaned/misconfigured DNS findings.",
+    "tags": [
+      "dns",
+      "route53",
+      "health-checks",
+      "hygiene"
+    ]
+  },
+  {
+    "id": "well-architected-quick",
+    "title": "Quick Well-Architected Assessment",
+    "category": "architecture",
+    "services": [
+      "EC2",
+      "RDS",
+      "S3",
+      "IAM",
+      "CloudWatch",
+      "VPC"
+    ],
+    "difficulty": "advanced",
+    "validated": true,
+    "description": "Rapid 6-pillar Well-Architected assessment — one key check per pillar for a quick infrastructure health score.",
+    "when": "Quick health check, new account review, or pre-meeting infrastructure snapshot.",
+    "prompt": "<role>\nYou are a solutions architect performing a rapid Well-Architected assessment across all six pillars.\n</role>\n\n<context>\nQuick Well-Architected review — one high-impact check per pillar to produce a fast infrastructure health score.\n</context>\n\n<task>\nPerform one key check per pillar via API:\n\n1. OPERATIONAL EXCELLENCE: CloudWatch alarms — how many are in ALARM or INSUFFICIENT_DATA state? (cloudwatch.DescribeAlarms)\n2. SECURITY: IAM — any users with console access but no MFA? Root account MFA status? (iam.GetCredentialReport)\n3. RELIABILITY: RDS — what percentage of databases have Multi-AZ enabled? (rds.DescribeDBInstances)\n4. PERFORMANCE: EC2 — what percentage of instances are on current-generation types? (ec2.DescribeInstances)\n5. COST OPTIMIZATION: EBS — how many unattached volumes exist? (ec2.DescribeVolumes with status=available)\n6. SUSTAINABILITY: EC2/Lambda — what percentage of compute is on Graviton (ARM64)? (ec2.DescribeInstances + lambda.ListFunctions)\n</task>\n\n<output>\nScorecard:\n| Pillar | Check | Result | Score |\n| Operational Excellence | Alarm health | 3/47 in ALARM | ⚠ |\n| Security | MFA coverage | 2 users without MFA | ❌ |\n...\n\nOverall: X/6 pillars healthy.\nTop 3 actions to improve score.\n</output>\n\n<quality>\nVerify each check via the specified API. One check per pillar — keep it fast.\nIf any API fails, score that pillar as \"Unable to assess\" and move on.\n</quality>",
+    "expects": "6-pillar scorecard with one check each + top 3 improvement actions.",
+    "tags": [
+      "well-architected",
+      "assessment",
+      "health-check",
+      "pillars"
+    ]
+  },
+  {
+    "id": "elasticache-review",
+    "title": "ElastiCache Fleet Review",
+    "category": "exploration",
+    "services": [
+      "ElastiCache",
+      "CloudWatch"
+    ],
+    "difficulty": "intermediate",
+    "validated": true,
+    "description": "Review ElastiCache clusters for engine version, node type, Multi-AZ, encryption, and utilization.",
+    "when": "Cache infrastructure review, version lifecycle check, or cost optimization.",
+    "prompt": "<role>\nYou are a caching infrastructure specialist reviewing ElastiCache clusters for health and optimization.\n</role>\n\n<context>\nElastiCache fleet review — assess engine versions, node sizing, resilience, and security configuration.\n</context>\n\n<task>\n1. List all ElastiCache replication groups via elasticache.DescribeReplicationGroups.\n2. List all standalone cache clusters via elasticache.DescribeCacheClusters.\n3. For each: cluster ID, engine (Redis/Memcached), version, node type, number of nodes, Multi-AZ status, encryption at-rest, encryption in-transit, automatic failover.\n4. Check CloudWatch metrics (last 7 days): CPUUtilization, EngineCPUUtilization, DatabaseMemoryUsagePercentage, CurrConnections.\n5. Identify:\n   - CRITICAL: engine versions approaching end of support\n   - HIGH: clusters without Multi-AZ or automatic failover\n   - HIGH: clusters without encryption (at-rest or in-transit)\n   - MEDIUM: clusters with <10% memory utilization (oversized)\n   - MEDIUM: previous-generation node types (cache.r5 → cache.r7g)\n</task>\n\n<output>\nCluster inventory table.\nFindings by severity.\nSummary: total clusters, % encrypted, % Multi-AZ, % current-gen.\n</output>\n\n<quality>\nVerify all attributes via describe APIs. Paginate through all clusters.\n</quality>",
+    "expects": "Cluster inventory + version/resilience/security findings + utilization data.",
+    "tags": [
+      "elasticache",
+      "redis",
+      "memcached",
+      "cache",
+      "version",
+      "encryption"
+    ]
+  }
+]

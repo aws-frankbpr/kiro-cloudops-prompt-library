@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kiro Cloud Ops — Prompt Library</title>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-LTSQPXXFQK"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-LTSQPXXFQK');</script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --blue:#0972d3;--blue-dark:#033160;--blue-light:#539fe5;--blue-bg:#f0f5ff;
+  --orange:#ec7211;--green:#037f0c;--green-bg:#f2fcf3;--yellow-bg:#fffce9;
+  --bg:#f2f3f3;--white:#fff;--gray50:#fafafa;--gray100:#f2f3f3;--gray200:#e9ebed;--gray300:#d5dbdb;--gray400:#7d8998;--gray500:#5f6b7a;--gray600:#414d5c;--gray900:#000716;
+  --code-bg:#0f1b2d;--font:'Amazon Ember','Helvetica Neue',Roboto,Arial,sans-serif;--mono:'SF Mono',SFMono-Regular,Consolas,monospace;
+  --radius:8px;--radius-lg:12px;
+  --shadow:0 1px 2px rgba(0,28,36,.12);--shadow-md:0 2px 8px rgba(0,28,36,.1);
+}
+html{background:var(--blue)}
+body{font-family:var(--font);background:var(--bg);color:var(--gray900);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased;overflow:hidden;height:100vh;display:flex;flex-direction:column}
+a{color:var(--blue);text-decoration:none}
+a:hover{color:var(--blue-dark);text-decoration:none}
+::selection{background:var(--blue);color:#fff}
+
+/* === Nav === */
+.nav{background:var(--blue);height:44px;display:flex;align-items:center;padding:0 20px;flex-shrink:0}
+.nav-brand{color:#fff;font-weight:700;font-size:15px;display:flex;align-items:center;gap:8px}
+.nav-brand svg{width:20px;height:20px;fill:#fff;opacity:.9}
+.nav-right{margin-left:auto;display:flex;gap:16px;align-items:center}
+.nav-right a{color:rgba(255,255,255,.85);font-size:12px;font-weight:500}
+.nav-right a:hover{color:#fff;text-decoration:none}
+.nav-stat{color:rgba(255,255,255,.7);font-size:11px}
+.nav-stat b{color:#fff;font-size:13px}
+
+/* === App shell: sidebar + main === */
+.shell{flex:1;display:flex;overflow:hidden;border-bottom:none}
+
+/* === Sidebar === */
+.sidebar{width:240px;background:var(--white);border-right:1px solid var(--gray200);display:flex;flex-direction:column;flex-shrink:0;overflow-y:auto;border-bottom:none}
+.sidebar-search{padding:12px;border-bottom:1px solid var(--gray200)}
+.sidebar-search input{width:100%;padding:7px 10px 7px 32px;border:1px solid var(--gray300);border-radius:var(--radius);font-size:13px;font-family:var(--font);outline:none;background:var(--white) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' fill='%237d8998' viewBox='0 0 16 16'%3E%3Cpath d='M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85zm-5.242.156a5 5 0 1 1 0-10 5 5 0 0 1 0 10z'/%3E%3C/svg%3E") 10px center no-repeat}
+.sidebar-search input:focus{border-color:var(--blue);box-shadow:0 0 0 2px rgba(9,114,211,.12)}
+.sidebar-section{padding:8px 0}
+.sidebar-label{padding:4px 16px;font-size:10px;font-weight:700;color:var(--gray400);text-transform:uppercase;letter-spacing:.8px}
+.sidebar-item{display:flex;align-items:center;gap:8px;padding:7px 16px;font-size:13px;color:var(--gray600);cursor:pointer;transition:all .08s;border-left:3px solid transparent}
+.sidebar-item:hover{background:var(--gray100);color:var(--gray900)}
+.sidebar-item.active{background:var(--blue-bg);color:var(--blue-dark);border-left-color:var(--blue);font-weight:600}
+.sidebar-item .cnt{margin-left:auto;font-size:11px;color:var(--gray400);font-weight:500;background:var(--gray100);padding:1px 7px;border-radius:10px}
+.sidebar-item.active .cnt{background:rgba(9,114,211,.12);color:var(--blue)}
+
+/* === List panel === */
+.list-panel{width:380px;background:var(--white);border-right:1px solid var(--gray200);display:flex;flex-direction:column;flex-shrink:0;overflow:hidden}
+.list-header{padding:12px 16px;border-bottom:1px solid var(--gray200);display:flex;align-items:center;justify-content:space-between}
+.list-header h2{font-size:14px;font-weight:600;color:var(--gray900)}
+.list-header .count{font-size:12px;color:var(--gray500)}
+.list-scroll{flex:1;overflow-y:auto}
+.list-item{padding:14px 16px;border-bottom:1px solid var(--gray200);cursor:pointer;transition:background .08s}
+.list-item:hover{background:var(--gray50)}
+.list-item.selected{background:var(--blue-bg);border-left:3px solid var(--blue)}
+.list-item-title{font-size:14px;font-weight:600;color:var(--gray900);margin-bottom:3px}
+.list-item-desc{font-size:12px;color:var(--gray500);line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.list-item-meta{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap}
+.list-badge{padding:1px 7px;border-radius:3px;font-size:10px;font-weight:600}
+.lb-cat{background:var(--blue-bg);color:var(--blue-dark)}
+.lb-ok{background:var(--green-bg);color:var(--green)}
+.lb-svc{background:var(--gray100);color:var(--gray500);border:1px solid var(--gray200)}
+
+/* === Detail panel === */
+.detail-panel{flex:1;display:flex;flex-direction:column;overflow:hidden;background:var(--gray50)}
+.detail-empty{flex:1;display:flex;align-items:center;justify-content:center;color:var(--gray400);font-size:15px;flex-direction:column;gap:8px}
+.detail-empty svg{width:48px;height:48px;fill:var(--gray300)}
+.detail-scroll{flex:1;overflow-y:auto;padding:24px}
+.detail-title{font-size:20px;font-weight:700;color:var(--gray900);margin-bottom:4px}
+.detail-badges{display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap}
+.db{padding:3px 10px;border-radius:4px;font-size:11px;font-weight:600}
+.db-cat{background:var(--blue-bg);color:var(--blue-dark)}
+.db-ok{background:var(--green-bg);color:var(--green)}
+.db-level{background:var(--gray100);color:var(--gray500)}
+.detail-section{margin-bottom:20px}
+.detail-section h3{font-size:11px;font-weight:700;color:var(--gray400);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px}
+.detail-desc{color:var(--gray600);font-size:14px;line-height:1.6}
+.detail-hint{font-size:13px;color:#8d6605;padding:10px 14px;background:var(--yellow-bg);border-radius:var(--radius);border-left:3px solid var(--orange);line-height:1.5}
+.detail-tags{display:flex;gap:4px;flex-wrap:wrap}
+.detail-tag{padding:3px 10px;background:var(--white);border:1px solid var(--gray200);border-radius:4px;font-size:11px;color:var(--gray600);font-weight:500}
+.detail-expects{font-size:13px;color:var(--gray500);line-height:1.5}
+.detail-expects strong{color:var(--gray600)}
+
+/* Code */
+.code-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.code-header h3{font-size:11px;font-weight:700;color:var(--gray400);text-transform:uppercase;letter-spacing:.6px}
+.code-actions{display:flex;gap:6px;align-items:center}
+.btn{padding:6px 16px;border-radius:var(--radius);font-size:13px;font-weight:600;cursor:pointer;border:none;font-family:var(--font);transition:all .1s}
+.btn-primary{background:var(--blue);color:#fff}
+.btn-primary:hover{background:var(--blue-dark)}
+.btn-primary.copied{background:var(--green)}
+.btn-ghost{background:none;color:var(--gray500);padding:6px 8px;font-size:16px}
+.btn-ghost:hover{color:var(--blue)}
+.btn-ghost.voted{color:var(--blue)}
+.code-block{background:var(--code-bg);color:#d1d5db;border-radius:var(--radius);padding:16px;font-family:var(--mono);font-size:12.5px;line-height:1.65;white-space:pre-wrap;max-height:calc(100vh - 420px);overflow-y:auto}
+.code-block::-webkit-scrollbar{width:6px}
+.code-block::-webkit-scrollbar-thumb{background:#37475a;border-radius:3px}
+
+/* Footer */
+footer{background:var(--blue);color:rgba(255,255,255,.85);padding:10px 20px;font-size:11px;display:flex;justify-content:center;align-items:center;flex-shrink:0;border:none;outline:none;margin:0;box-shadow:0 -1px 0 0 var(--blue)}
+footer *{border:none;outline:none;text-decoration:none!important}
+footer a{color:rgba(255,255,255,.95)!important;font-weight:500!important;text-decoration:none!important;border:none!important;background:none!important;box-shadow:none!important}
+footer a:hover{color:#fff!important;text-decoration:none!important}
+footer a:visited{text-decoration:none!important}
+footer a:active{text-decoration:none!important}
+
+/* Mobile */
+@media(max-width:1024px){
+  .sidebar{display:none}
+  .list-panel{width:100%}
+  .detail-panel{display:none}
+  .detail-panel.mobile-show{display:flex;position:fixed;inset:44px 0 0;z-index:200;width:100%}
+  .mobile-back{display:block!important}
+}
+.mobile-back{display:none;padding:8px 16px;background:var(--blue-bg);color:var(--blue);font-size:13px;font-weight:600;cursor:pointer;border:none;border-bottom:1px solid var(--gray200);width:100%;text-align:left;font-family:var(--font)}
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-brand">
+    <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
+    Kiro Cloud Ops
+  </div>
+  <div class="nav-right">
+    <span class="nav-stat"><b id="s-total">0</b> prompts</span>
+    <span class="nav-stat"><b id="s-copies">0</b> copies</span>
+    <a href="https://discord.gg/a9vTMjwc">💬 Discord</a>
+    <a href="https://github.com/aws-frankbpr/kiro-cloudops-prompt-library">GitHub</a>
+  </div>
+</nav>
+
+<div class="shell">
+  <!-- Sidebar: categories -->
+  <div class="sidebar">
+    <div class="sidebar-search"><input type="text" id="search" placeholder="Find prompts..."></div>
+    <div class="sidebar-section" id="cat-list"></div>
+  </div>
+
+  <!-- List: prompts in selected category -->
+  <div class="list-panel">
+    <div class="list-header"><h2 id="list-title">All Prompts</h2><span class="count" id="list-count"></span></div>
+    <div class="list-scroll" id="list"></div>
+  </div>
+
+  <!-- Detail: selected prompt -->
+  <div class="detail-panel" id="detail">
+    <div class="detail-empty">
+      <svg viewBox="0 0 24 24"><path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm-1 7V3.5L18.5 9H13zM6 20V4h5v7h7v9H6z"/></svg>
+      <span>Select a prompt to preview</span>
+    </div>
+  </div>
+</div>
+
+<footer>
+  <span>Built by Frank Poma — Anthropic Best Practices — 💬 Discord — GitHub</span>
+</footer>
+
+<script>
+let P=[],sel=null,af='all',copies=parseInt(localStorage.getItem('kiro_copies')||'0');
+const CM={exploration:{l:'Exploration',i:'🔍'},finops:{l:'FinOps',i:'💰'},security:{l:'Security',i:'🔒'},architecture:{l:'Architecture',i:'🏗️'},networking:{l:'Networking',i:'🌐'},containers:{l:'Containers',i:'📦'},troubleshooting:{l:'Troubleshooting',i:'🔧'},governance:{l:'Governance',i:'⚙️'},compliance:{l:'Compliance',i:'✅'},incident:{l:'Incident',i:'🚨'},iac:{l:'IaC',i:'📝'},s3:{l:'S3',i:'🪣'}};
+
+async function init(){
+  try{
+    const r=await fetch('prompts.json');
+    if(!r.ok)throw new Error('fetch failed');
+    P=await r.json();
+  }catch(e){
+    // Load via script tag fallback for file:// protocol
+    try{
+      const s=document.createElement('script');
+      s.src='prompts.json';
+      s.onload=()=>{};
+      // Try XMLHttpRequest as fallback
+      const xhr=new XMLHttpRequest();
+      xhr.open('GET','prompts.json',false);
+      xhr.send();
+      if(xhr.status===200||xhr.status===0)P=JSON.parse(xhr.responseText);
+    }catch(e2){P=[]}
+  }
+  document.getElementById('s-total').textContent=P.length;
+  document.getElementById('s-copies').textContent=copies;
+  buildSidebar();renderList();
+  document.getElementById('search').addEventListener('input',()=>renderList());
+}
+
+function buildSidebar(){
+  const cats={};P.forEach(p=>{cats[p.category]=(cats[p.category]||0)+1});
+  const el=document.getElementById('cat-list');
+  el.innerHTML=`<div class="sidebar-label">Categories</div>
+    <div class="sidebar-item active" onclick="pickCat('all',this)">📋 All prompts<span class="cnt">${P.length}</span></div>`+
+    Object.entries(cats).sort((a,b)=>b[1]-a[1]).map(([c,n])=>{
+      const m=CM[c]||{l:c,i:'📋'};
+      return `<div class="sidebar-item" onclick="pickCat('${c}',this)">${m.i} ${m.l}<span class="cnt">${n}</span></div>`
+    }).join('');
+}
+
+function pickCat(c,el){
+  af=c;sel=null;
+  document.querySelectorAll('.sidebar-item').forEach(i=>i.classList.remove('active'));
+  el.classList.add('active');
+  renderList();showEmpty();
+}
+
+function renderList(){
+  const q=document.getElementById('search').value.toLowerCase();
+  const f=P.filter(p=>{
+    const mc=af==='all'||p.category===af;
+    const mq=!q||p.title.toLowerCase().includes(q)||p.description.toLowerCase().includes(q)||(p.services||[]).some(s=>s.toLowerCase().includes(q))||(p.tags||[]).some(t=>t.includes(q));
+    return mc&&mq;
+  });
+  const cm=af==='all'?'All Prompts':(CM[af]||{}).l||af;
+  document.getElementById('list-title').textContent=cm;
+  document.getElementById('list-count').textContent=`${f.length} prompt${f.length!==1?'s':''}`;
+  const el=document.getElementById('list');
+  if(!f.length){el.innerHTML='<div style="padding:32px;text-align:center;color:#7d8998">No prompts found</div>';return}
+  el.innerHTML=f.map(p=>{
+    const m=CM[p.category]||{l:p.category};
+    return `<div class="list-item${sel===p.id?' selected':''}" onclick="pick('${p.id}')" id="li-${p.id}">
+      <div class="list-item-title">${p.title}</div>
+      <div class="list-item-desc">${p.description}</div>
+      <div class="list-item-meta">
+        <span class="list-badge lb-cat">${m.l}</span>
+        ${p.validated?'<span class="list-badge lb-ok">✓ Validated</span>':''}
+        ${(p.services||[]).slice(0,3).map(s=>`<span class="list-badge lb-svc">${s}</span>`).join('')}
+      </div>
+    </div>`}).join('');
+}
+
+function pick(id){
+  sel=id;
+  document.querySelectorAll('.list-item').forEach(i=>i.classList.remove('selected'));
+  const li=document.getElementById('li-'+id);if(li)li.classList.add('selected');
+  const p=P.find(x=>x.id===id);if(!p)return;
+  const m=CM[p.category]||{l:p.category,i:''};
+  const dp=document.getElementById('detail');
+  dp.classList.add('mobile-show');
+  dp.innerHTML=`
+    <button class="mobile-back" onclick="this.parentElement.classList.remove('mobile-show')">← Back to list</button>
+    <div class="detail-scroll">
+      <div class="detail-title">${p.title}</div>
+      <div class="detail-badges">
+        <span class="db db-cat">${m.i} ${m.l}</span>
+        ${p.validated?'<span class="db db-ok">✓ Validated</span>':''}
+        <span class="db db-level">${p.difficulty||'beginner'}</span>
+      </div>
+      <div class="detail-section"><h3>Description</h3><div class="detail-desc">${p.description}</div></div>
+      <div class="detail-section"><h3>When to use</h3><div class="detail-hint">💡 ${p.when}</div></div>
+      <div class="detail-section"><h3>AWS Services</h3><div class="detail-tags">${(p.services||[]).map(s=>`<span class="detail-tag">${s}</span>`).join('')}</div></div>
+      <div class="detail-section">
+        <div class="code-header">
+          <h3>Prompt</h3>
+          <div class="code-actions">
+            <button class="btn btn-primary" id="cpb-${p.id}" onclick="cp('${p.id}')">📋 Copy prompt</button>
+            <button class="btn-ghost" onclick="vt('${p.id}','up',this)">👍</button>
+            <button class="btn-ghost" onclick="vt('${p.id}','down',this)">👎</button>
+          </div>
+        </div>
+        <div class="code-block">${esc(p.prompt)}</div>
+      </div>
+      <div class="detail-section"><h3>Expected output</h3><div class="detail-expects">${p.expects}</div></div>
+    </div>`;
+}
+
+function showEmpty(){
+  document.getElementById('detail').innerHTML=`<div class="detail-empty"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm-1 7V3.5L18.5 9H13zM6 20V4h5v7h7v9H6z"/></svg><span>Select a prompt to preview</span></div>`;
+}
+
+function cp(id){
+  const p=P.find(x=>x.id===id);if(!p)return;
+  navigator.clipboard.writeText(p.prompt).then(()=>{
+    const b=document.getElementById('cpb-'+id);
+    if(b){b.textContent='✅ Copied!';b.classList.add('copied');setTimeout(()=>{b.textContent='📋 Copy prompt';b.classList.remove('copied')},2000)}
+    copies++;localStorage.setItem('kiro_copies',copies);
+    document.getElementById('s-copies').textContent=copies;
+    gtag('event','copy_prompt',{prompt_id:id,category:p.category,prompt_title:p.title});
+  });
+}
+
+function vt(id,v,btn){
+  btn.parentElement.querySelectorAll('.btn-ghost').forEach(b=>b.classList.remove('voted'));
+  btn.classList.add('voted');localStorage.setItem('vote_'+id,v);
+  const p=P.find(x=>x.id===id);
+  if(p)gtag('event','prompt_feedback',{prompt_id:id,category:p.category,prompt_title:p.title,feedback:v});
+}
+
+function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+init();
+</script>
+</body>
+</html>
